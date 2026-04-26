@@ -338,11 +338,32 @@
 
     .guide-level {
       position: absolute;
-      left: 15%;
-      right: 15%;
+      left: 50%;
       top: 12%;
-      height: 2px;
-      background: rgba(255, 255, 255, .85);
+      width: 70%;
+      height: 3px;
+      background: rgba(255, 255, 255, .88);
+      box-shadow: 0 0 2px rgba(0, 0, 0, .7);
+      transform: translateX(-50%) rotate(var(--level-angle, 0deg));
+      transform-origin: center center;
+      transition: transform .08s linear, background .12s;
+    }
+
+    .guide-level.level-ok {
+      background: rgba(120, 255, 150, .95);
+    }
+
+    .guide-level::before {
+      content: '';
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: currentColor;
+      color: rgba(255, 255, 255, .95);
+      transform: translate(-50%, -50%);
       box-shadow: 0 0 2px rgba(0, 0, 0, .7);
     }
 
@@ -657,6 +678,13 @@
         </div>
       </div>
 
+      <div class="camera-actions">
+        <button class="camera-btn" id="btn-shot" disabled>この枠で撮影</button>
+        <button class="camera-btn" id="btn-camera">📷 カメラ起動</button>
+        <button class="camera-btn" id="btn-retake" disabled>撮り直し</button>
+        <button class="camera-btn" id="btn-save" disabled>保存/共有</button>
+      </div>
+
       <div class="dropzone" id="dropzone">
         <label class="drop-label" for="fileInput">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
@@ -668,13 +696,6 @@
           画像を追加（複数可）
         </label>
         <input type="file" id="fileInput" accept="image/*" multiple>
-      </div>
-
-      <div class="camera-actions">
-        <button class="camera-btn" id="btn-camera">📷 カメラ起動</button>
-        <button class="camera-btn" id="btn-shot" disabled>この枠で撮影</button>
-        <button class="camera-btn" id="btn-retake" disabled>撮り直し</button>
-        <button class="camera-btn" id="btn-save" disabled>保存/共有</button>
       </div>
 
       <div class="camera-controls" id="cameraControls">
@@ -730,7 +751,7 @@
 
       <div class="footer">
         <span>PC: 矢印キーで切替 / スマホ: スワイプ</span>
-        <span>v1.02-camera</span>
+        <span>v1.03-order-focus-level</span>
       </div>
     </div>
   </div>
@@ -753,6 +774,8 @@ let hardwareZoomSupported = false;
 let minZoom = 1;
 let maxZoom = 4;
 let zoomStep = 0.1;
+let levelGuideStatus = '水平線: 固定表示';
+let levelGuideActive = false;
 
 const OUTPUT_SIZE = 3072;
 
@@ -798,6 +821,7 @@ const exposureRange = document.getElementById('exposureRange');
 const exposureValue = document.getElementById('exposureValue');
 const cameraSupportNote = document.getElementById('cameraSupportNote');
 const focusMarker = document.getElementById('focusMarker');
+const guideLevel = document.querySelector('.guide-level');
 
 function setMode(mode) {
   body.className = 'mode-' + mode;
@@ -999,12 +1023,23 @@ function setupCameraControls() {
       focusModeSelect.appendChild(option);
     });
 
+    const preferredFocusMode = cameraCapabilities.focusMode.includes('continuous')
+      ? 'continuous'
+      : cameraCapabilities.focusMode.includes('single-shot')
+        ? 'single-shot'
+        : cameraCapabilities.focusMode[0];
+
+    focusModeSelect.value = preferredFocusMode;
     focusModeSelect.disabled = false;
     btnRefocus.disabled = false;
-    notes.push('フォーカス: 対応');
+    focusRange.disabled = !(preferredFocusMode === 'manual' && cameraCapabilities.focusDistance);
+    applyFocusMode(preferredFocusMode, true);
+
+    notes.push(preferredFocusMode === 'continuous' ? 'フォーカス: 自動' : 'フォーカス: 対応');
   } else {
     focusModeSelect.disabled = true;
     btnRefocus.disabled = true;
+    focusRange.disabled = true;
     notes.push('フォーカス: 非対応または自動のみ');
   }
 
@@ -1032,6 +1067,7 @@ function setupCameraControls() {
     notes.push('露出補正: 非対応');
   }
 
+  notes.push(levelGuideStatus);
   cameraSupportNote.textContent = notes.join(' / ');
 }
 
@@ -1062,7 +1098,7 @@ async function applyZoom(value) {
   }
 }
 
-async function applyFocusMode(mode) {
+async function applyFocusMode(mode, silent = false) {
   if (!cameraTrack) return;
 
   try {
@@ -1073,7 +1109,9 @@ async function applyFocusMode(mode) {
     focusRange.disabled = !(mode === 'manual' && cameraCapabilities.focusDistance);
   } catch (error) {
     console.warn('focus mode failed', error);
-    alert('この端末/ブラウザではフォーカス制御に対応していない可能性があります。');
+    if (!silent) {
+      alert('この端末/ブラウザではフォーカス制御に対応していない可能性があります。');
+    }
   }
 }
 
@@ -1139,6 +1177,65 @@ async function refocusAtPoint(x, y) {
   await refocus();
 }
 
+function getScreenAngle() {
+  if (screen.orientation && typeof screen.orientation.angle === 'number') {
+    return screen.orientation.angle;
+  }
+  return typeof window.orientation === 'number' ? window.orientation : 0;
+}
+
+function getRollFromOrientation(event) {
+  const beta = typeof event.beta === 'number' ? event.beta : 0;
+  const gamma = typeof event.gamma === 'number' ? event.gamma : 0;
+  const screenAngle = getScreenAngle();
+
+  // 縦持ちは gamma、横持ちは beta を使うと自然に見えやすい。
+  if (Math.abs(screenAngle) === 90 || Math.abs(screenAngle) === 270) {
+    return beta;
+  }
+  return gamma;
+}
+
+function updateLevelLine(roll) {
+  if (!guideLevel || !Number.isFinite(roll)) return;
+
+  const clamped = Math.max(-45, Math.min(45, roll));
+  // スマホの傾きと逆向きに回して、画面上の水平目安として使う。
+  holder.style.setProperty('--level-angle', `${-clamped}deg`);
+  guideLevel.classList.toggle('level-ok', Math.abs(clamped) < 1.5);
+}
+
+function handleDeviceOrientation(event) {
+  updateLevelLine(getRollFromOrientation(event));
+}
+
+async function enableLevelGuide() {
+  if (!window.DeviceOrientationEvent) {
+    levelGuideStatus = '水平線: 固定表示';
+    return;
+  }
+
+  try {
+    if (typeof DeviceOrientationEvent.requestPermission === 'function') {
+      const permission = await DeviceOrientationEvent.requestPermission();
+      if (permission !== 'granted') {
+        levelGuideStatus = '水平線: 許可なし';
+        return;
+      }
+    }
+
+    if (!levelGuideActive) {
+      window.addEventListener('deviceorientation', handleDeviceOrientation, true);
+      levelGuideActive = true;
+    }
+
+    levelGuideStatus = '水平線: 傾き対応';
+  } catch (error) {
+    console.warn('device orientation failed', error);
+    levelGuideStatus = '水平線: 固定表示';
+  }
+}
+
 async function startCamera() {
   try {
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
@@ -1150,6 +1247,7 @@ async function startCamera() {
       stopCamera();
     }
 
+    await enableLevelGuide();
     applyPreviewAspect();
     const { ratio } = getAspectRatioParts();
 
@@ -1208,6 +1306,8 @@ function stopCamera() {
   if (btnZoomIn) btnZoomIn.disabled = true;
   if (btnZoomReset) btnZoomReset.disabled = true;
   holder.style.setProperty('--digital-zoom', '1');
+  holder.style.setProperty('--level-angle', '0deg');
+  if (guideLevel) guideLevel.classList.remove('level-ok');
   focusModeSelect.disabled = true;
   focusRange.disabled = true;
   btnRefocus.disabled = true;
