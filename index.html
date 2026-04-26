@@ -400,7 +400,43 @@
 .camera-btn:disabled {
   opacity: .45;
   cursor: default;
-}  
+} 
+      .camera-controls {
+  display: grid;
+  gap: 10px;
+  margin-top: 10px;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  font-size: 14px;
+}
+
+.camera-controls label {
+  display: grid;
+  gap: 4px;
+}
+
+.camera-controls input,
+.camera-controls select {
+  width: 100%;
+}
+
+.camera-note {
+  margin: 0;
+  opacity: .75;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.holder {
+  aspect-ratio: var(--camera-aspect, 1 / 1);
+}
+
+.camera-video {
+  transform: scale(var(--digital-zoom, 1));
+  transform-origin: center center;
+}
     </style>
 </head>
 <body class="mode-disk">
@@ -487,7 +523,42 @@
   <button class="camera-btn" id="btn-shot" disabled>この枠で撮影</button>
   <button class="camera-btn" id="btn-save" disabled>保存/共有</button>
 </div>
+<div class="camera-controls" id="cameraControls">
+  <label>
+    ズーム
+    <input type="range" id="zoomRange" min="1" max="4" step="0.1" value="1" disabled>
+    <span id="zoomValue">1.0x</span>
+  </label>
 
+  <label>
+    アスペクト比
+    <select id="aspectSelect">
+      <option value="1:1">1:1 正方形</option>
+      <option value="4:3">4:3 横</option>
+      <option value="3:4">3:4 縦</option>
+      <option value="16:9">16:9 横長</option>
+      <option value="9:16">9:16 縦長</option>
+    </select>
+  </label>
+
+  <label>
+    フォーカス
+    <select id="focusModeSelect" disabled>
+      <option value="continuous">自動</option>
+      <option value="manual">手動</option>
+    </select>
+  </label>
+
+  <label>
+    手動フォーカス距離
+    <input type="range" id="focusRange" min="0" max="1" step="0.01" value="0" disabled>
+  </label>
+
+  <button class="camera-btn" id="btn-refocus" disabled>フォーカス再調整</button>
+
+  <p class="camera-note" id="cameraSupportNote"></p>
+</div>
+            
 <canvas id="captureCanvas" hidden></canvas>
 
             <div class="footer">
@@ -526,7 +597,20 @@ const btnShot = document.getElementById('btn-shot');
 const btnSave = document.getElementById('btn-save');
 const captureCanvas = document.getElementById('captureCanvas');
 
+const zoomRange = document.getElementById('zoomRange');
+const zoomValue = document.getElementById('zoomValue');
+const aspectSelect = document.getElementById('aspectSelect');
+const focusModeSelect = document.getElementById('focusModeSelect');
+const focusRange = document.getElementById('focusRange');
+const btnRefocus = document.getElementById('btn-refocus');
+const cameraSupportNote = document.getElementById('cameraSupportNote');
+
 let cameraStream = null;
+let cameraTrack = null;
+let cameraCapabilities = {};
+let currentZoom = 1;
+let hardwareZoomSupported = false;
+
 const OUTPUT_SIZE = 3072;
 btnDisk.onclick = () => setMode('disk');
 btnGift.onclick = () => setMode('gift');
@@ -639,7 +723,206 @@ stage.ontouchend = e => {
     const diff = e.changedTouches[0].clientX - startX;
     if (Math.abs(diff) > 50) go(diff > 0 ? -1 : 1);
 };
+function getAspectRatioParts() {
+  const [w, h] = aspectSelect.value.split(':').map(Number);
+  return { w, h, ratio: w / h };
+}
 
+function getOutputSizeByAspect() {
+  const { w, h } = getAspectRatioParts();
+
+  if (w === h) {
+    return {
+      width: OUTPUT_SIZE,
+      height: OUTPUT_SIZE
+    };
+  }
+
+  if (w > h) {
+    return {
+      width: OUTPUT_SIZE,
+      height: Math.round(OUTPUT_SIZE * h / w)
+    };
+  }
+
+  return {
+    width: Math.round(OUTPUT_SIZE * w / h),
+    height: OUTPUT_SIZE
+  };
+}
+
+function applyPreviewAspect() {
+  const { w, h } = getAspectRatioParts();
+  holder.style.setProperty('--camera-aspect', `${w} / ${h}`);
+}
+
+aspectSelect.onchange = applyPreviewAspect;
+applyPreviewAspect();
+
+function getVideoTrack() {
+  if (!cameraStream) return null;
+  return cameraStream.getVideoTracks()[0] || null;
+}
+
+function setupCameraControls() {
+  cameraTrack = getVideoTrack();
+  if (!cameraTrack) return;
+
+  cameraCapabilities = cameraTrack.getCapabilities ? cameraTrack.getCapabilities() : {};
+  const notes = [];
+
+  // ズーム対応確認
+  if (cameraCapabilities.zoom) {
+    hardwareZoomSupported = true;
+
+    const min = cameraCapabilities.zoom.min ?? 1;
+    const max = cameraCapabilities.zoom.max ?? 4;
+    const step = cameraCapabilities.zoom.step ?? 0.1;
+
+    zoomRange.min = min;
+    zoomRange.max = max;
+    zoomRange.step = step;
+    zoomRange.value = min;
+
+    currentZoom = Number(min);
+    zoomValue.textContent = `${currentZoom.toFixed(1)}x`;
+    zoomRange.disabled = false;
+
+    notes.push('ズーム: カメラ側ズーム対応');
+  } else {
+    hardwareZoomSupported = false;
+
+    zoomRange.min = 1;
+    zoomRange.max = 4;
+    zoomRange.step = 0.1;
+    zoomRange.value = 1;
+    zoomRange.disabled = false;
+
+    notes.push('ズーム: 端末非対応のためデジタルズーム');
+  }
+
+  // フォーカス対応確認
+  if (cameraCapabilities.focusMode && cameraCapabilities.focusMode.length) {
+    focusModeSelect.innerHTML = '';
+
+    cameraCapabilities.focusMode.forEach(mode => {
+      const option = document.createElement('option');
+      option.value = mode;
+      option.textContent =
+        mode === 'continuous' ? '自動' :
+        mode === 'single-shot' ? '一回だけAF' :
+        mode === 'manual' ? '手動' :
+        mode;
+      focusModeSelect.appendChild(option);
+    });
+
+    focusModeSelect.disabled = false;
+    btnRefocus.disabled = false;
+
+    notes.push('フォーカス: モード変更対応');
+  } else {
+    notes.push('フォーカス: このブラウザでは制御不可の可能性あり');
+  }
+
+  // 手動フォーカス距離
+  if (cameraCapabilities.focusDistance) {
+    const min = cameraCapabilities.focusDistance.min ?? 0;
+    const max = cameraCapabilities.focusDistance.max ?? 1;
+    const step = cameraCapabilities.focusDistance.step ?? 0.01;
+
+    focusRange.min = min;
+    focusRange.max = max;
+    focusRange.step = step;
+    focusRange.value = min;
+  }
+
+  cameraSupportNote.textContent = notes.join(' / ');
+}
+
+async function applyZoom(value) {
+  currentZoom = Number(value);
+  zoomValue.textContent = `${currentZoom.toFixed(1)}x`;
+
+  // プレビュー用の見た目ズーム
+  holder.style.setProperty('--digital-zoom', currentZoom);
+
+  if (!cameraTrack || !hardwareZoomSupported) return;
+
+  try {
+    await cameraTrack.applyConstraints({
+      advanced: [{ zoom: currentZoom }]
+    });
+  } catch (err) {
+    console.warn('hardware zoom failed, using digital zoom only', err);
+  }
+}
+
+async function applyFocusMode(mode) {
+  if (!cameraTrack) return;
+
+  try {
+    await cameraTrack.applyConstraints({
+      advanced: [{ focusMode: mode }]
+    });
+
+    if (mode === 'manual' && cameraCapabilities.focusDistance) {
+      focusRange.disabled = false;
+    } else {
+      focusRange.disabled = true;
+    }
+  } catch (err) {
+    console.warn('focus mode failed', err);
+    alert('この端末/ブラウザではフォーカス制御に対応していない可能性があります。');
+  }
+}
+
+async function applyFocusDistance(value) {
+  if (!cameraTrack || !cameraCapabilities.focusDistance) return;
+
+  try {
+    await cameraTrack.applyConstraints({
+      advanced: [{
+        focusMode: 'manual',
+        focusDistance: Number(value)
+      }]
+    });
+  } catch (err) {
+    console.warn('manual focus failed', err);
+  }
+}
+
+async function refocus() {
+  if (!cameraTrack) return;
+
+  try {
+    if (
+      cameraCapabilities.focusMode &&
+      cameraCapabilities.focusMode.includes('single-shot')
+    ) {
+      await cameraTrack.applyConstraints({
+        advanced: [{ focusMode: 'single-shot' }]
+      });
+    } else if (
+      cameraCapabilities.focusMode &&
+      cameraCapabilities.focusMode.includes('continuous')
+    ) {
+      await cameraTrack.applyConstraints({
+        advanced: [{ focusMode: 'continuous' }]
+      });
+    } else {
+      alert('この端末/ブラウザではフォーカス再調整に対応していない可能性があります。');
+    }
+  } catch (err) {
+    console.warn('refocus failed', err);
+    alert('フォーカス再調整に失敗しました。');
+  }
+}
+
+zoomRange.oninput = () => applyZoom(zoomRange.value);
+focusModeSelect.onchange = () => applyFocusMode(focusModeSelect.value);
+focusRange.oninput = () => applyFocusDistance(focusRange.value);
+btnRefocus.onclick = refocus;
+    
 async function startCamera() {
   try {
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
@@ -647,20 +930,25 @@ async function startCamera() {
       return;
     }
 
-    cameraStream = await navigator.mediaDevices.getUserMedia({
+    const { ratio } = getAspectRatioParts();
+
+cameraStream = await navigator.mediaDevices.getUserMedia({
   video: {
     facingMode: { ideal: 'environment' },
     width: { ideal: OUTPUT_SIZE },
-    height: { ideal: OUTPUT_SIZE }
+    height: { ideal: OUTPUT_SIZE },
+    aspectRatio: { ideal: ratio }
   },
   audio: false
 });
 
-    cameraVideo.srcObject = cameraStream;
-    holder.classList.add('camera-on');
+cameraVideo.srcObject = cameraStream;
+holder.classList.add('camera-on');
 
-    btnCamera.textContent = '■ カメラ停止';
-    btnShot.disabled = false;
+setupCameraControls();
+
+btnCamera.textContent = '■ カメラ停止';
+btnShot.disabled = false;
   } catch (err) {
     console.error(err);
     alert('カメラを起動できませんでした。ブラウザのカメラ許可を確認してください。');
@@ -673,6 +961,9 @@ function stopCamera() {
     cameraStream = null;
   }
 
+  cameraTrack = null;
+  cameraCapabilities = {}; 
+    
   cameraVideo.srcObject = null;
   holder.classList.remove('camera-on');
 
@@ -700,17 +991,27 @@ function drawVideoCover(ctx, video, w, h) {
     sy = (vh - sh) / 2;
   }
 
+  // デジタルズーム用に、さらに中央を切り出す
+  const zoom = Math.max(1, currentZoom || 1);
+  const zoomedSw = sw / zoom;
+  const zoomedSh = sh / zoom;
+  sx += (sw - zoomedSw) / 2;
+  sy += (sh - zoomedSh) / 2;
+  sw = zoomedSw;
+  sh = zoomedSh;
+
   ctx.drawImage(video, sx, sy, sw, sh, 0, 0, w, h);
 }
 
 function captureFromCamera() {
   if (!cameraStream || !cameraVideo.videoWidth) return;
 
-  const w = OUTPUT_SIZE;
-  const h = OUTPUT_SIZE;
+const output = getOutputSizeByAspect();
+const w = output.width;
+const h = output.height;
 
-  captureCanvas.width = w;
-  captureCanvas.height = h;
+captureCanvas.width = w;
+captureCanvas.height = h;
 
   const ctx = captureCanvas.getContext('2d');
   drawVideoCover(ctx, cameraVideo, w, h);
