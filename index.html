@@ -1,764 +1,697 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ポケストポスカ確認用</title>
-    <style>
-        :root {
-            --orange: #d45228;
-            --blue:   #3a7ab5;
-            --bg:     #181f26;
-            --panel:  #1e2830;
-            --surface:#252f38;
-            --border: #2e3d4a;
-            --text:   #e8edf2;
-            --muted:  #607080;
-            --pokestop-blue: #30bef0;
-        }
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ポケストポスカ確認用</title>
+  <style>
+    :root {
+      --orange: #d45228;
+      --blue: #3a7ab5;
+      --bg: #181f26;
+      --panel: #1e2830;
+      --surface: #252f38;
+      --border: #2e3d4a;
+      --text: #e8edf2;
+      --muted: #607080;
+      --pokestop-blue: #30bef0;
+      --camera-aspect: 1 / 1;
+      --preview-brightness: 100%;
+      --preview-contrast: 100%;
+      --digital-zoom: 1;
+    }
 
-        * { box-sizing: border-box; margin: 0; padding: 0; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
 
-        body {
-            font-family: -apple-system, 'Helvetica Neue', 'Hiragino Sans', sans-serif;
-            background: var(--bg);
-            color: var(--text);
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-        }
+    body {
+      font-family: -apple-system, 'Helvetica Neue', 'Hiragino Sans', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
 
-        header {
-            background: var(--panel);
-            border-bottom: 1px solid var(--border);
-            padding: .7rem 1.25rem;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            position: sticky;
-            top: 0;
-            z-index: 100;
-        }
+    header {
+      background: var(--panel);
+      border-bottom: 1px solid var(--border);
+      padding: .7rem 1.25rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
 
-        .logo {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            font-size: .78rem;
-            font-weight: 700;
-            letter-spacing: 1.5px;
-            text-transform: uppercase;
-            color: var(--muted);
-        }
-        .logo-dot {
-            width: 8px; height: 8px;
-            background: var(--orange);
-            border-radius: 50%;
-        }
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: .78rem;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
 
-        .header-controls {
-            display: flex;
-            gap: 12px;
-            align-items: center;
-        }
+    .logo-dot {
+      width: 8px;
+      height: 8px;
+      background: var(--orange);
+      border-radius: 50%;
+    }
 
-        .grid-btn {
-            background: none;
-            border: 1px solid var(--border);
-            border-radius: 4px;
-            color: var(--muted);
-            padding: 6px;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: all .15s;
-        }
-        .grid-btn.active {
-            color: var(--orange);
-            border-color: var(--orange);
-            background: rgba(212, 82, 40, 0.1);
-        }
+    .header-controls {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+    }
 
-        .mode-switch {
-            display: flex;
-            border: 1px solid var(--border);
-            border-radius: 4px;
-            overflow: hidden;
-        }
-        .mode-btn {
-            background: none;
-            border: none;
-            border-right: 1px solid var(--border);
-            color: var(--muted);
-            padding: 6px 12px;
-            cursor: pointer;
-            transition: background .15s, color .15s;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        .mode-btn:last-child { border-right: none; }
-        .mode-btn.active { background: var(--orange); color: #fff; }
-        
-        .icon {
-            width: 20px;
-            height: 20px;
-            fill: currentColor;
-        }
+    .grid-btn {
+      background: none;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      color: var(--muted);
+      padding: 6px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all .15s;
+    }
 
-        main {
-            flex: 1;
-            display: flex;
-            justify-content: center;
-            padding: 1rem;
-            width: 100%;
-            max-width: 1200px;
-            margin: 0 auto;
-        }
+    .grid-btn.active {
+      color: var(--orange);
+      border-color: var(--orange);
+      background: rgba(212, 82, 40, 0.1);
+    }
 
-        .card {
-            width: 100%;
-            max-width: 520px;
-            background: var(--panel);
-            border: 1px solid var(--border);
-            display: flex;
-            flex-direction: column;
-            border-radius: 8px;
-            overflow: hidden;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
-        }
+    .mode-switch {
+      display: flex;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      overflow: hidden;
+    }
 
-        .stage {
-            background: var(--pokestop-blue);
-            padding: 2.5rem 2rem;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            position: relative;
-            user-select: none;
-            touch-action: pan-y;
-            transition: background 0.3s;
-        }
-        .stage.drag-over { outline: 2px dashed var(--orange); outline-offset: -4px; }
+    .mode-btn {
+      background: none;
+      border: none;
+      border-right: 1px solid var(--border);
+      color: var(--muted);
+      padding: 6px 12px;
+      cursor: pointer;
+      transition: background .15s, color .15s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
 
-        .nav-btn {
-            position: absolute;
-            top: 50%;
-            transform: translateY(-50%);
-            background: rgba(0, 0, 0, 0.2);
-            backdrop-filter: blur(4px);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            color: #fff;
-            width: 44px; height: 44px;
-            display: flex; align-items: center; justify-content: center;
-            cursor: pointer;
-            font-size: 28px;
-            line-height: 1;
-            border-radius: 50%;
-            z-index: 10;
-            transition: background 0.2s;
-        }
-        .nav-btn:hover:not(:disabled) { background: rgba(0, 0, 0, 0.4); }
-        .nav-btn:disabled { opacity: 0; cursor: default; }
-        .nav-btn.prev { left: 10px; }
-        .nav-btn.next { right: 10px; }
+    .mode-btn:last-child { border-right: none; }
+    .mode-btn.active { background: var(--orange); color: #fff; }
 
-        .frame-wrap {
-            position: relative;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
+    .icon {
+      width: 20px;
+      height: 20px;
+      fill: currentColor;
+    }
 
-        .ring {
-            position: absolute;
-            border-radius: 50%;
-            pointer-events: none;
-            transition: opacity .3s;
-        }
-        .ring-1 { width: 282px; height: 282px; border: 2.5px solid #fff; }
-        .ring-2 { width: 302px; height: 302px; border: 1px solid rgba(255,255,255,.3); }
+    main {
+      flex: 1;
+      display: flex;
+      justify-content: center;
+      padding: 1rem;
+      width: 100%;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
 
-        .mode-gift .ring { opacity: 0; }
-        .mode-disk .ring { opacity: 1; }
+    .card {
+      width: 100%;
+      max-width: 520px;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+    }
 
-        .holder {
-            width: 260px; height: 260px;
-            overflow: hidden;
-            position: relative;
-            background: #000;
-            flex-shrink: 0;
-            transition: border-radius .3s;
-            border: 3px solid #fff;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-        }
+    .stage {
+      background: var(--pokestop-blue);
+      padding: 2.5rem 2rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      position: relative;
+      user-select: none;
+      touch-action: pan-y;
+      transition: background 0.3s;
+    }
 
-        .mode-disk .holder { border-radius: 50%; }
-        .mode-gift .holder { border-radius: 0; }
+    .stage.drag-over {
+      outline: 2px dashed var(--orange);
+      outline-offset: -4px;
+    }
 
-        .holder img {
-            width: 100%; height: 100%;
-            object-fit: cover;
-            display: block;
-            pointer-events: none;
-            user-select: none;
-        }
+    .nav-btn {
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      background: rgba(0, 0, 0, 0.2);
+      backdrop-filter: blur(4px);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      color: #fff;
+      width: 44px;
+      height: 44px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-size: 28px;
+      line-height: 1;
+      border-radius: 50%;
+      z-index: 10;
+      transition: background 0.2s;
+    }
 
-        .grid-overlay {
-            position: absolute;
-            top: 0; left: 0; right: 0; bottom: 0;
-            pointer-events: none;
-            display: none;
-        }
-        
-        .grid-3x3 { display: block; }
-        .grid-3x3 .line { position: absolute; background: rgba(255, 255, 255, 0.4); }
-        .grid-3x3 .v1 { left: 33.33%; top: 0; bottom: 0; width: 1px; }
-        .grid-3x3 .v2 { left: 66.66%; top: 0; bottom: 0; width: 1px; }
-        .grid-3x3 .h1 { top: 33.33%; left: 0; right: 0; height: 1px; }
-        .grid-3x3 .h2 { top: 66.66%; left: 0; right: 0; height: 1px; }
+    .nav-btn:hover:not(:disabled) { background: rgba(0, 0, 0, 0.4); }
+    .nav-btn:disabled { opacity: 0; cursor: default; }
+    .nav-btn.prev { left: 10px; }
+    .nav-btn.next { right: 10px; }
 
-        .grid-center { display: block; }
-        .grid-center .center-cross {
-            position: absolute;
-            top: 50%; left: 50%;
-            transform: translate(-50%, -50%);
-            width: 20px; height: 20px;
-        }
-        .grid-center .center-cross::before,
-        .grid-center .center-cross::after {
-            content: ''; position: absolute; background: rgba(255, 255, 255, 0.6);
-        }
-        .grid-center .center-cross::before { top: 50%; left: 0; width: 100%; height: 1px; }
-        .grid-center .center-cross::after { left: 50%; top: 0; height: 100%; width: 1px; }
-        
-        .grid-center .edge-mark { position: absolute; background: rgba(255, 255, 255, 0.5); }
-        .grid-center .mark-t { top: 0; left: 50%; width: 1px; height: 8px; transform: translateX(-50%); }
-        .grid-center .mark-b { bottom: 0; left: 50%; width: 1px; height: 8px; transform: translateX(-50%); }
-        .grid-center .mark-l { left: 0; top: 50%; height: 1px; width: 8px; transform: translateY(-50%); }
-        .grid-center .mark-r { right: 0; top: 50%; height: 1px; width: 8px; transform: translateY(-50%); }
+    .frame-wrap {
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
 
-        .empty {
-            width: 100%; height: 100%;
-            display: flex; flex-direction: column;
-            align-items: center; justify-content: center;
-            gap: 10px; color: #fff; font-size: 12px; text-align: center;
-        }
+    .ring {
+      position: absolute;
+      border-radius: 50%;
+      pointer-events: none;
+      transition: opacity .3s;
+    }
 
-        .counter {
-            margin-top: 1rem;
-            font-size: 12px;
-            color: #fff;
-            letter-spacing: 1px;
-            min-height: 16px;
-            text-shadow: 0 1px 2px rgba(0,0,0,0.2);
-        }
-        .dots {
-            display: flex; gap: 6px; margin-top: .5rem;
-            min-height: 10px;
-        }
-        .dot {
-            width: 5px; height: 5px;
-            border-radius: 50%;
-            background: rgba(255,255,255,0.4);
-            cursor: pointer;
-            transition: background .15s;
-        }
-        .dot.active { background: #fff; }
+    .ring-1 { width: 282px; height: 282px; border: 2.5px solid #fff; }
+    .ring-2 { width: 302px; height: 302px; border: 1px solid rgba(255,255,255,.3); }
 
-        .controls {
-            border-top: 1px solid var(--border);
-            padding: 1.25rem;
-            display: flex;
-            flex-direction: column;
-            gap: 1rem;
-        }
+    .mode-gift .ring { opacity: 0; }
+    .mode-disk .ring { opacity: 1; }
 
-        .thumbs {
-            display: flex; flex-wrap: wrap; gap: 6px;
-            min-height: 0;
-            max-height: 150px;
-            overflow-y: auto;
-            padding: 2px;
-        }
-        .thumb {
-            width: 48px; height: 48px;
-            object-fit: cover;
-            border: 2px solid transparent;
-            cursor: pointer;
-            opacity: .5;
-            transition: all .15s;
-            border-radius: 4px;
-        }
-        .thumb.active { border-color: var(--orange); opacity: 1; transform: scale(1.05); }
-        .thumb:hover { opacity: .85; }
+    .holder {
+      width: 260px;
+      height: auto;
+      aspect-ratio: var(--camera-aspect);
+      overflow: hidden;
+      position: relative;
+      background: #000;
+      flex-shrink: 0;
+      transition: border-radius .3s, aspect-ratio .2s;
+      border: 3px solid #fff;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    }
 
-        .dropzone {
-            border: 2px dashed var(--border);
-            padding: 1.25rem;
-            border-radius: 6px;
-            text-align: center;
-            cursor: pointer;
-            transition: all .2s;
-            background: rgba(255,255,255,0.02);
-        }
-        .dropzone:hover, .dropzone.drag-over { 
-            border-color: var(--orange); 
-            background: rgba(212, 82, 40, 0.05);
-        }
-        .drop-label {
-            display: flex; align-items: center; justify-content: center;
-            gap: 8px; color: var(--text); font-size: 14px; cursor: pointer;
-        }
-        input[type="file"] { display: none; }
+    .mode-disk .holder { border-radius: 50%; }
+    .mode-gift .holder { border-radius: 0; }
 
-        .footer {
-            padding: 0 0.2rem;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            font-size: 11px;
-            color: var(--muted);
-        }
+    .holder img {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+      pointer-events: none;
+      user-select: none;
+      z-index: 1;
+    }
 
-        /* PC等、横長画面用の調整 */
-        @media (min-width: 768px) {
-            main {
-                padding: 2rem;
-                align-items: flex-start;
-            }
-            .card {
-                max-width: 600px; /* PCでは少し大きめに表示 */
-            }
-            .holder {
-                width: 300px; height: 300px; /* プレビューを少し拡大 */
-            }
-            .ring-1 { width: 322px; height: 322px; }
-            .ring-2 { width: 342px; height: 342px; }
-            .thumb { width: 56px; height: 56px; }
-        }
- /* カメラ撮影モード */
-.camera-video {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  display: none;
-  z-index: 0;
-  background: #000;
-}
+    .camera-video {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: none;
+      z-index: 0;
+      background: #000;
+      filter: brightness(var(--preview-brightness)) contrast(var(--preview-contrast));
+      transform: scale(var(--digital-zoom));
+      transform-origin: center center;
+    }
 
-.holder > img {
-  position: absolute;
-  inset: 0;
-  z-index: 1;
-}
+    .holder.camera-on .camera-video { display: block; }
+    .holder.camera-on > img,
+    .holder.camera-on #emptyState { display: none !important; }
 
-.holder.camera-on .camera-video {
-  display: block;
-}
+    .grid-overlay {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      display: none;
+      z-index: 2;
+    }
 
-.holder.camera-on > img,
-.holder.camera-on #emptyState {
-  display: none !important;
-}
+    .grid-3x3 { display: block; }
+    .grid-3x3 .line { position: absolute; background: rgba(255, 255, 255, 0.4); }
+    .grid-3x3 .v1 { left: 33.33%; top: 0; bottom: 0; width: 1px; }
+    .grid-3x3 .v2 { left: 66.66%; top: 0; bottom: 0; width: 1px; }
+    .grid-3x3 .h1 { top: 33.33%; left: 0; right: 0; height: 1px; }
+    .grid-3x3 .h2 { top: 66.66%; left: 0; right: 0; height: 1px; }
 
-.grid-overlay {
-  z-index: 2;
-}
+    .grid-center { display: block; }
+    .grid-center .center-cross {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 20px;
+      height: 20px;
+    }
 
-.empty {
-  position: absolute;
-  inset: 0;
-  z-index: 1;
-}
+    .grid-center .center-cross::before,
+    .grid-center .center-cross::after {
+      content: '';
+      position: absolute;
+      background: rgba(255, 255, 255, 0.6);
+    }
 
-.camera-btn {
-  border: 1px solid var(--border);
-  background: var(--surface);
-  color: var(--text);
-  padding: .8rem;
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 14px;
-}
+    .grid-center .center-cross::before { top: 50%; left: 0; width: 100%; height: 1px; }
+    .grid-center .center-cross::after { left: 50%; top: 0; height: 100%; width: 1px; }
 
-.camera-btn:disabled {
-  opacity: .45;
-  cursor: default;
-} 
+    .grid-center .edge-mark { position: absolute; background: rgba(255, 255, 255, 0.5); }
+    .grid-center .mark-t { top: 0; left: 50%; width: 1px; height: 8px; transform: translateX(-50%); }
+    .grid-center .mark-b { bottom: 0; left: 50%; width: 1px; height: 8px; transform: translateX(-50%); }
+    .grid-center .mark-l { left: 0; top: 50%; height: 1px; width: 8px; transform: translateY(-50%); }
+    .grid-center .mark-r { right: 0; top: 50%; height: 1px; width: 8px; transform: translateY(-50%); }
 
-.camera-note {
-  margin: 0;
-  opacity: .75;
-  font-size: 12px;
-  line-height: 1.5;
-}
+    .empty {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      color: #fff;
+      font-size: 12px;
+      text-align: center;
+    }
 
-.holder {
-  aspect-ratio: var(--camera-aspect, 1 / 1);
-}
+    .camera-guide {
+      position: absolute;
+      inset: 0;
+      z-index: 4;
+      pointer-events: none;
+      display: none;
+    }
 
-.camera-video {
-  transform: scale(var(--digital-zoom, 1));
-  transform-origin: center center;
-}
- /* 撮影ガイド */
-.camera-guide {
-  position: absolute;
-  inset: 0;
-  z-index: 4;
-  pointer-events: none;
-  display: none;
-}
+    .holder.camera-on .camera-guide { display: block; }
 
-.holder.camera-on .camera-guide {
-  display: block;
-}
+    .guide-line {
+      position: absolute;
+      background: rgba(255, 255, 255, .75);
+      box-shadow: 0 0 2px rgba(0, 0, 0, .7);
+    }
 
-.guide-line {
-  position: absolute;
-  background: rgba(255, 255, 255, .75);
-  box-shadow: 0 0 2px rgba(0, 0, 0, .7);
-}
+    .guide-line-v { top: 0; bottom: 0; left: 50%; width: 1px; }
+    .guide-line-h { left: 0; right: 0; top: 50%; height: 1px; }
 
-.guide-line-v {
-  top: 0;
-  bottom: 0;
-  left: 50%;
-  width: 1px;
-}
+    .guide-circle {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      border: 1px solid rgba(255, 255, 255, .75);
+      border-radius: 50%;
+      transform: translate(-50%, -50%);
+      box-shadow: 0 0 2px rgba(0, 0, 0, .7);
+    }
 
-.guide-line-h {
-  left: 0;
-  right: 0;
-  top: 50%;
-  height: 1px;
-}
+    .guide-circle-outer { width: 78%; aspect-ratio: 1 / 1; }
+    .guide-circle-inner { width: 42%; aspect-ratio: 1 / 1; border-style: dashed; }
 
-.guide-circle {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  border: 1px solid rgba(255, 255, 255, .75);
-  border-radius: 50%;
-  transform: translate(-50%, -50%);
-  box-shadow: 0 0 2px rgba(0, 0, 0, .7);
-}
+    .guide-level {
+      position: absolute;
+      left: 15%;
+      right: 15%;
+      top: 12%;
+      height: 2px;
+      background: rgba(255, 255, 255, .85);
+      box-shadow: 0 0 2px rgba(0, 0, 0, .7);
+    }
 
-.guide-circle-outer {
-  width: 78%;
-  aspect-ratio: 1 / 1;
-}
+    .focus-marker {
+      position: absolute;
+      width: 64px;
+      height: 64px;
+      border: 2px solid rgba(255, 255, 255, .95);
+      border-radius: 50%;
+      z-index: 6;
+      pointer-events: none;
+      transform: translate(-50%, -50%) scale(.8);
+      opacity: 0;
+      box-shadow: 0 0 4px rgba(0, 0, 0, .75);
+    }
 
-.guide-circle-inner {
-  width: 42%;
-  aspect-ratio: 1 / 1;
-  border-style: dashed;
-}
+    .focus-marker.show { animation: focus-pop .75s ease-out; }
 
-.guide-level {
-  position: absolute;
-  left: 15%;
-  right: 15%;
-  top: 12%;
-  height: 2px;
-  background: rgba(255, 255, 255, .85);
-  box-shadow: 0 0 2px rgba(0, 0, 0, .7);
-}
+    @keyframes focus-pop {
+      0% { opacity: 0; transform: translate(-50%, -50%) scale(1.35); }
+      20% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+      100% { opacity: 0; transform: translate(-50%, -50%) scale(.85); }
+    }
 
-/* タップフォーカス風UI */
-.focus-marker {
-  position: absolute;
-  width: 64px;
-  height: 64px;
-  border: 2px solid rgba(255, 255, 255, .95);
-  border-radius: 50%;
-  z-index: 6;
-  pointer-events: none;
-  transform: translate(-50%, -50%) scale(.8);
-  opacity: 0;
-  box-shadow: 0 0 4px rgba(0, 0, 0, .75);
-}
+    .counter {
+      margin-top: 1rem;
+      font-size: 12px;
+      color: #fff;
+      letter-spacing: 1px;
+      min-height: 16px;
+      text-shadow: 0 1px 2px rgba(0,0,0,0.2);
+    }
 
-.focus-marker.show {
-  animation: focus-pop .75s ease-out;
-}
+    .dots {
+      display: flex;
+      gap: 6px;
+      margin-top: .5rem;
+      min-height: 10px;
+    }
 
-@keyframes focus-pop {
-  0% {
-    opacity: 0;
-    transform: translate(-50%, -50%) scale(1.35);
-  }
-  20% {
-    opacity: 1;
-    transform: translate(-50%, -50%) scale(1);
-  }
-  100% {
-    opacity: 0;
-    transform: translate(-50%, -50%) scale(.85);
-  }
-}
+    .dot {
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.4);
+      cursor: pointer;
+      transition: background .15s;
+    }
 
-/* 明るさ・コントラスト操作 */
-.camera-controls {
-  display: grid;
-  gap: 10px;
-  margin-top: 10px;
-  padding: 10px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--surface);
-  font-size: 14px;
-}
+    .dot.active { background: #fff; }
 
-.camera-controls label {
-  display: grid;
-  gap: 4px;
-}
+    .controls {
+      border-top: 1px solid var(--border);
+      padding: 1.25rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
 
-.camera-controls input {
-  width: 100%;
-}
+    .thumbs {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      min-height: 0;
+      max-height: 150px;
+      overflow-y: auto;
+      padding: 2px;
+    }
 
-.camera-note {
-  margin: 0;
-  opacity: .75;
-  font-size: 12px;
-  line-height: 1.5;
-}
+    .thumb {
+      width: 48px;
+      height: 48px;
+      object-fit: cover;
+      border: 2px solid transparent;
+      cursor: pointer;
+      opacity: .5;
+      transition: all .15s;
+      border-radius: 4px;
+    }
 
-/* プレビュー映像にも補正を反映 */
-.camera-video {
-  filter: brightness(var(--preview-brightness, 100%)) contrast(var(--preview-contrast, 100%));
-}
+    .thumb.active { border-color: var(--orange); opacity: 1; transform: scale(1.05); }
+    .thumb:hover { opacity: .85; }
 
-/* ボタン4つ用 */
-.camera-actions {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 8px;
-  margin-top: 8px;
-}
+    .dropzone {
+      border: 2px dashed var(--border);
+      padding: 1.25rem;
+      border-radius: 6px;
+      text-align: center;
+      cursor: pointer;
+      transition: all .2s;
+      background: rgba(255,255,255,0.02);
+    }
 
-@media (min-width: 520px) {
-  .camera-actions {
-    grid-template-columns: 1fr 1fr 1fr 1fr;
-  }
-}       
-    </style>
+    .dropzone:hover,
+    .dropzone.drag-over {
+      border-color: var(--orange);
+      background: rgba(212, 82, 40, 0.05);
+    }
+
+    .drop-label {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      color: var(--text);
+      font-size: 14px;
+      cursor: pointer;
+    }
+
+    input[type="file"] { display: none; }
+
+    .camera-actions {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 8px;
+    }
+
+    .camera-btn {
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text);
+      padding: .8rem;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+
+    .camera-btn:disabled {
+      opacity: .45;
+      cursor: default;
+    }
+
+    .camera-controls {
+      display: grid;
+      gap: 10px;
+      padding: 10px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--surface);
+      font-size: 14px;
+    }
+
+    .camera-controls label { display: grid; gap: 4px; }
+    .camera-controls input,
+    .camera-controls select { width: 100%; }
+
+    .camera-note {
+      margin: 0;
+      opacity: .75;
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    .footer {
+      padding: 0 0.2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 11px;
+      color: var(--muted);
+    }
+
+    @media (min-width: 520px) {
+      .camera-actions { grid-template-columns: 1fr 1fr; }
+    }
+
+    @media (min-width: 768px) {
+      main {
+        padding: 2rem;
+        align-items: flex-start;
+      }
+
+      .card { max-width: 600px; }
+      .holder { width: 300px; }
+      .ring-1 { width: 322px; height: 322px; }
+      .ring-2 { width: 342px; height: 342px; }
+      .thumb { width: 56px; height: 56px; }
+      .camera-actions { grid-template-columns: 1fr 1fr 1fr 1fr; }
+    }
+  </style>
 </head>
 <body class="mode-disk">
 
 <header>
-    <div class="logo">
-        <span class="logo-dot"></span>
-        ポケストポスカ確認用
+  <div class="logo">
+    <span class="logo-dot"></span>
+    ポケストポスカ確認用
+  </div>
+  <div class="header-controls">
+    <button class="grid-btn" id="btn-grid-toggle" title="グリッド切替">
+      <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <line x1="8" y1="3" x2="8" y2="21" />
+        <line x1="16" y1="3" x2="16" y2="21" />
+        <line x1="3" y1="8" x2="21" y2="8" />
+        <line x1="3" y1="16" x2="21" y2="16" />
+      </svg>
+    </button>
+    <div class="mode-switch">
+      <button class="mode-btn active" id="btn-disk" title="ディスクモード">
+        <svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/></svg>
+      </button>
+      <button class="mode-btn" id="btn-gift" title="ギフトモード">
+        <svg class="icon" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="1.5"/></svg>
+      </button>
     </div>
-    <div class="header-controls">
-        <button class="grid-btn" id="btn-grid-toggle" title="グリッド切替">
-            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <line x1="8" y1="3" x2="8" y2="21" />
-                <line x1="16" y1="3" x2="16" y2="21" />
-                <line x1="3" y1="8" x2="21" y2="8" />
-                <line x1="3" y1="16" x2="21" y2="16" />
-            </svg>
-        </button>
-        <div class="mode-switch">
-            <button class="mode-btn active" id="btn-disk" title="ディスクモード">
-                <svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/></svg>
-            </button>
-            <button class="mode-btn" id="btn-gift" title="ギフトモード">
-                <svg class="icon" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="1.5"/></svg>
-            </button>
-        </div>
-    </div>
+  </div>
 </header>
 
 <main>
-    <div class="card">
-        <div class="stage" id="stage">
-            <button class="nav-btn prev" id="btn-prev" disabled aria-label="前の画像">&#8249;</button>
-            <button class="nav-btn next" id="btn-next" disabled aria-label="次の画像">&#8250;</button>
+  <div class="card">
+    <div class="stage" id="stage">
+      <button class="nav-btn prev" id="btn-prev" disabled aria-label="前の画像">&#8249;</button>
+      <button class="nav-btn next" id="btn-next" disabled aria-label="次の画像">&#8250;</button>
 
-            <div class="frame-wrap">
-                <div class="ring ring-2"></div>
-                <div class="ring ring-1"></div>
-                <div class="holder" id="holder">
-                  <video id="cameraVideo" class="camera-video" autoplay playsinline muted></video> 
+      <div class="frame-wrap">
+        <div class="ring ring-2"></div>
+        <div class="ring ring-1"></div>
 
-                    <div class="camera-guide" id="cameraGuide">
-    <div class="guide-line guide-line-v"></div>
-    <div class="guide-line guide-line-h"></div>
-    <div class="guide-circle guide-circle-outer"></div>
-    <div class="guide-circle guide-circle-inner"></div>
-    <div class="guide-level"></div>
-  </div>
+        <div class="holder" id="holder">
+          <video id="cameraVideo" class="camera-video" autoplay playsinline muted></video>
 
-  <div class="focus-marker" id="focusMarker"></div>
+          <div class="camera-guide" id="cameraGuide">
+            <div class="guide-line guide-line-v"></div>
+            <div class="guide-line guide-line-h"></div>
+            <div class="guide-circle guide-circle-outer"></div>
+            <div class="guide-circle guide-circle-inner"></div>
+            <div class="guide-level"></div>
+          </div>
 
-  <div id="grid-3x3" class="grid-overlay">
-                  <div id="grid-3x3" class="grid-overlay">
-                        <div class="line v1"></div><div class="line v2"></div>
-                        <div class="line h1"></div><div class="line h2"></div>
-                    </div>
-                    <div id="grid-center" class="grid-overlay">
-                        <div class="center-cross"></div>
-                        <div class="edge-mark mark-t"></div><div class="edge-mark mark-b"></div>
-                        <div class="edge-mark mark-l"></div><div class="edge-mark mark-r"></div>
-                    </div>
+          <div class="focus-marker" id="focusMarker"></div>
 
-                    <div class="empty" id="emptyState">
-                        <svg width="36" height="36" viewBox="0 0 24 24" fill="none"
-                             stroke="currentColor" stroke-width="1.2">
-                            <rect x="3" y="3" width="18" height="18" rx="2"/>
-                            <circle cx="8.5" cy="8.5" r="1.5"/>
-                            <path d="M21 15l-5-5L5 21"/>
-                        </svg>
-                        <span>画像をドロップ<br>または下から選択</span>
-                    </div>
-                </div>
-            </div>
+          <div id="grid-3x3" class="grid-overlay">
+            <div class="line v1"></div><div class="line v2"></div>
+            <div class="line h1"></div><div class="line h2"></div>
+          </div>
 
-            <div class="counter" id="counter"></div>
-            <div class="dots"   id="dots"></div>
+          <div id="grid-center" class="grid-overlay">
+            <div class="center-cross"></div>
+            <div class="edge-mark mark-t"></div><div class="edge-mark mark-b"></div>
+            <div class="edge-mark mark-l"></div><div class="edge-mark mark-r"></div>
+          </div>
+
+          <div class="empty" id="emptyState">
+            <svg width="36" height="36" viewBox="0 0 24 24" fill="none"
+                 stroke="currentColor" stroke-width="1.2">
+              <rect x="3" y="3" width="18" height="18" rx="2"/>
+              <circle cx="8.5" cy="8.5" r="1.5"/>
+              <path d="M21 15l-5-5L5 21"/>
+            </svg>
+            <span>画像をドロップ<br>または下から選択</span>
+          </div>
         </div>
+      </div>
 
-        <div class="controls">
-            <div class="thumbs" id="thumbs"></div>
-
-            <div class="dropzone" id="dropzone">
-                <label class="drop-label" for="fileInput">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
-                         stroke="currentColor" stroke-width="2.2">
-                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                        <polyline points="17 8 12 3 7 8"/>
-                        <line x1="12" y1="3" x2="12" y2="15"/>
-                    </svg>
-                    画像を追加（複数可）
-                </label>
-                <input type="file" id="fileInput" accept="image/*" multiple>
-            </div>
-<div class="camera-actions">
-  <button class="camera-btn" id="btn-camera">📷 カメラ起動</button>
-  <button class="camera-btn" id="btn-shot" disabled>この枠で撮影</button>
-  <button class="camera-btn" id="btn-retake" disabled>撮り直し</button>
-  <button class="camera-btn" id="btn-save" disabled>保存/共有</button>
-</div>
-
-<div class="camera-controls" id="cameraControls">
-  <label>
-    明るさ
-    <input type="range" id="brightnessRange" min="50" max="150" step="1" value="100">
-    <span id="brightnessValue">100%</span>
-  </label>
-
-  <label>
-    コントラスト
-    <input type="range" id="contrastRange" min="50" max="150" step="1" value="100">
-    <span id="contrastValue">100%</span>
-  </label>
-
-  <label>
-    露出補正
-    <input type="range" id="exposureRange" min="0" max="0" step="1" value="0" disabled>
-    <span id="exposureValue">非対応</span>
-  </label>
-
-  <p class="camera-note" id="cameraSupportNote"></p>
-</div>
-
-<canvas id="captureCanvas" hidden></canvas>
-<div class="camera-controls" id="cameraControls">
-  <label>
-    ズーム
-    <input type="range" id="zoomRange" min="1" max="4" step="0.1" value="1" disabled>
-    <span id="zoomValue">1.0x</span>
-  </label>
-
-  <label>
-    アスペクト比
-    <select id="aspectSelect">
-      <option value="1:1">1:1 正方形</option>
-      <option value="4:3">4:3 横</option>
-      <option value="3:4">3:4 縦</option>
-      <option value="16:9">16:9 横長</option>
-      <option value="9:16">9:16 縦長</option>
-    </select>
-  </label>
-
-  <label>
-    フォーカス
-    <select id="focusModeSelect" disabled>
-      <option value="continuous">自動</option>
-      <option value="manual">手動</option>
-    </select>
-  </label>
-
-  <label>
-    手動フォーカス距離
-    <input type="range" id="focusRange" min="0" max="1" step="0.01" value="0" disabled>
-  </label>
-
-  <button class="camera-btn" id="btn-refocus" disabled>フォーカス再調整</button>
-
-  <p class="camera-note" id="cameraSupportNote"></p>
-</div>
-            
-<canvas id="captureCanvas" hidden></canvas>
-
-            <div class="footer">
-                <span>PC: 矢印キーで切替 / スマホ: スワイプ</span>
-                <span>v1.01</span>
-            </div>
-        </div>
+      <div class="counter" id="counter"></div>
+      <div class="dots" id="dots"></div>
     </div>
+
+    <div class="controls">
+      <div class="thumbs" id="thumbs"></div>
+
+      <div class="dropzone" id="dropzone">
+        <label class="drop-label" for="fileInput">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+               stroke="currentColor" stroke-width="2.2">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+            <polyline points="17 8 12 3 7 8"/>
+            <line x1="12" y1="3" x2="12" y2="15"/>
+          </svg>
+          画像を追加（複数可）
+        </label>
+        <input type="file" id="fileInput" accept="image/*" multiple>
+      </div>
+
+      <div class="camera-actions">
+        <button class="camera-btn" id="btn-camera">📷 カメラ起動</button>
+        <button class="camera-btn" id="btn-shot" disabled>この枠で撮影</button>
+        <button class="camera-btn" id="btn-retake" disabled>撮り直し</button>
+        <button class="camera-btn" id="btn-save" disabled>保存/共有</button>
+      </div>
+
+      <div class="camera-controls" id="cameraControls">
+        <label>
+          明るさ
+          <input type="range" id="brightnessRange" min="50" max="150" step="1" value="100">
+          <span id="brightnessValue">100%</span>
+        </label>
+
+        <label>
+          コントラスト
+          <input type="range" id="contrastRange" min="50" max="150" step="1" value="100">
+          <span id="contrastValue">100%</span>
+        </label>
+
+        <label>
+          ズーム
+          <input type="range" id="zoomRange" min="1" max="4" step="0.1" value="1" disabled>
+          <span id="zoomValue">1.0x</span>
+        </label>
+
+        <label>
+          アスペクト比
+          <select id="aspectSelect">
+            <option value="1:1">1:1 正方形</option>
+            <option value="4:3">4:3 横</option>
+            <option value="3:4">3:4 縦</option>
+            <option value="16:9">16:9 横長</option>
+            <option value="9:16">9:16 縦長</option>
+          </select>
+        </label>
+
+        <label>
+          フォーカス
+          <select id="focusModeSelect" disabled>
+            <option value="continuous">自動</option>
+            <option value="manual">手動</option>
+          </select>
+        </label>
+
+        <label>
+          手動フォーカス距離
+          <input type="range" id="focusRange" min="0" max="1" step="0.01" value="0" disabled>
+        </label>
+
+        <label>
+          露出補正
+          <input type="range" id="exposureRange" min="0" max="0" step="1" value="0" disabled>
+          <span id="exposureValue">非対応</span>
+        </label>
+
+        <button class="camera-btn" id="btn-refocus" disabled>フォーカス再調整</button>
+
+        <p class="camera-note" id="cameraSupportNote">カメラ起動後に対応機能を確認します。</p>
+      </div>
+
+      <canvas id="captureCanvas" hidden></canvas>
+
+      <div class="footer">
+        <span>PC: 矢印キーで切替 / スマホ: スワイプ</span>
+        <span>v1.02-camera</span>
+      </div>
+    </div>
+  </div>
 </main>
 
 <script>
-let imgs    = [];
+let imgs = [];
 let current = 0;
-let gridState = 0; 
-
-const body      = document.body;
-const holder    = document.getElementById('holder');
-const empty     = document.getElementById('emptyState');
-const counterEl = document.getElementById('counter');
-const dotsEl    = document.getElementById('dots');
-const thumbsEl  = document.getElementById('thumbs');
-const stage     = document.getElementById('stage');
-const btnPrev   = document.getElementById('btn-prev');
-const btnNext   = document.getElementById('btn-next');
-const dropzone  = document.getElementById('dropzone');
-const fileInput = document.getElementById('fileInput');
-const btnDisk   = document.getElementById('btn-disk');
-const btnGift   = document.getElementById('btn-gift');
-const btnGrid   = document.getElementById('btn-grid-toggle');
-
-const grid3x3    = document.getElementById('grid-3x3');
-const gridCenter = document.getElementById('grid-center');
-const cameraVideo = document.getElementById('cameraVideo');
-const btnCamera = document.getElementById('btn-camera');
-const btnShot = document.getElementById('btn-shot');
-const btnSave = document.getElementById('btn-save');
-const captureCanvas = document.getElementById('captureCanvas');
-
-const brightnessRange = document.getElementById('brightnessRange');
-const brightnessValue = document.getElementById('brightnessValue');
-const contrastRange = document.getElementById('contrastRange');
-const contrastValue = document.getElementById('contrastValue');
-const exposureRange = document.getElementById('exposureRange');
-const exposureValue = document.getElementById('exposureValue');
-const cameraSupportNote = document.getElementById('cameraSupportNote');
-const focusMarker = document.getElementById('focusMarker');    
-const zoomRange = document.getElementById('zoomRange');
-const zoomValue = document.getElementById('zoomValue');
-const aspectSelect = document.getElementById('aspectSelect');
-const focusModeSelect = document.getElementById('focusModeSelect');
-const focusRange = document.getElementById('focusRange');
-const btnRefocus = document.getElementById('btn-refocus');
+let gridState = 0;
 
 let cameraStream = null;
 let cameraTrack = null;
@@ -771,117 +704,136 @@ let currentZoom = 1;
 let hardwareZoomSupported = false;
 
 const OUTPUT_SIZE = 3072;
-btnDisk.onclick = () => setMode('disk');
-btnGift.onclick = () => setMode('gift');
 
-function setMode(m) {
-    body.className = 'mode-' + m;
-    btnDisk.classList.toggle('active', m === 'disk');
-    btnGift.classList.toggle('active', m === 'gift');
-}
+const body = document.body;
+const holder = document.getElementById('holder');
+const empty = document.getElementById('emptyState');
+const counterEl = document.getElementById('counter');
+const dotsEl = document.getElementById('dots');
+const thumbsEl = document.getElementById('thumbs');
+const stage = document.getElementById('stage');
+const btnPrev = document.getElementById('btn-prev');
+const btnNext = document.getElementById('btn-next');
+const dropzone = document.getElementById('dropzone');
+const fileInput = document.getElementById('fileInput');
+const btnDisk = document.getElementById('btn-disk');
+const btnGift = document.getElementById('btn-gift');
+const btnGrid = document.getElementById('btn-grid-toggle');
 
-btnGrid.onclick = () => {
-    gridState = (gridState + 1) % 3;
-    grid3x3.className = 'grid-overlay' + (gridState === 1 ? ' grid-3x3' : '');
-    gridCenter.className = 'grid-overlay' + (gridState === 2 ? ' grid-center' : '');
-    btnGrid.classList.toggle('active', gridState !== 0);
-};
+const grid3x3 = document.getElementById('grid-3x3');
+const gridCenter = document.getElementById('grid-center');
 
-fileInput.onchange = e => load(e.target.files);
+const cameraVideo = document.getElementById('cameraVideo');
+const btnCamera = document.getElementById('btn-camera');
+const btnShot = document.getElementById('btn-shot');
+const btnRetake = document.getElementById('btn-retake');
+const btnSave = document.getElementById('btn-save');
+const captureCanvas = document.getElementById('captureCanvas');
 
-const stop = e => e.preventDefault();
-['dragover', 'drop'].forEach(evt => {
-    stage.addEventListener(evt, stop);
-    dropzone.addEventListener(evt, stop);
-});
+const brightnessRange = document.getElementById('brightnessRange');
+const brightnessValue = document.getElementById('brightnessValue');
+const contrastRange = document.getElementById('contrastRange');
+const contrastValue = document.getElementById('contrastValue');
+const zoomRange = document.getElementById('zoomRange');
+const zoomValue = document.getElementById('zoomValue');
+const aspectSelect = document.getElementById('aspectSelect');
+const focusModeSelect = document.getElementById('focusModeSelect');
+const focusRange = document.getElementById('focusRange');
+const btnRefocus = document.getElementById('btn-refocus');
+const exposureRange = document.getElementById('exposureRange');
+const exposureValue = document.getElementById('exposureValue');
+const cameraSupportNote = document.getElementById('cameraSupportNote');
+const focusMarker = document.getElementById('focusMarker');
 
-stage.ondragenter = () => stage.classList.add('drag-over');
-stage.ondragleave = () => stage.classList.remove('drag-over');
-stage.ondrop = e => { stage.classList.remove('drag-over'); load(e.dataTransfer.files); };
-
-function load(fileList) {
-    const files = Array.from(fileList).filter(f => f.type.startsWith('image/'));
-    if (!files.length) return;
-    let n = 0;
-    const start = imgs.length;
-    files.forEach(f => {
-        const r = new FileReader();
-        r.onload = e => {
-            imgs.push({ src: e.target.result });
-            if (++n === files.length) { 
-                current = start; 
-                render(); 
-            }
-        };
-        r.readAsDataURL(f);
-    });
+function setMode(mode) {
+  body.className = 'mode-' + mode;
+  btnDisk.classList.toggle('active', mode === 'disk');
+  btnGift.classList.toggle('active', mode === 'gift');
 }
 
 function render() {
-    const old = holder.querySelector('img');
-    if (old) old.remove();
+  const old = holder.querySelector('img');
+  if (old) old.remove();
 
-    empty.style.display = imgs.length ? 'none' : 'flex';
-    if (!imgs.length) {
-        counterEl.textContent = '';
-        dotsEl.innerHTML = '';
-        thumbsEl.innerHTML = '';
-        btnPrev.disabled = true;
-        btnNext.disabled = true;
-        return;
-    }
+  empty.style.display = imgs.length ? 'none' : 'flex';
 
-    current = Math.max(0, Math.min(current, imgs.length - 1));
-
-    const el = document.createElement('img');
-    el.src = imgs[current].src;
-    holder.appendChild(el);
-
-    counterEl.textContent = `${current + 1} / ${imgs.length}`;
-
+  if (!imgs.length) {
+    current = 0;
+    counterEl.textContent = '';
     dotsEl.innerHTML = '';
-    imgs.forEach((_, i) => {
-        const d = document.createElement('div');
-        d.className = 'dot' + (i === current ? ' active' : '');
-        d.onclick = () => { current = i; render(); };
-        dotsEl.appendChild(d);
-    });
-
     thumbsEl.innerHTML = '';
-    imgs.forEach((im, i) => {
-        const t = document.createElement('img');
-        t.src = im.src;
-        t.className = 'thumb' + (i === current ? ' active' : '');
-        t.onclick = () => { current = i; render(); };
-        thumbsEl.appendChild(t);
-    });
+    btnPrev.disabled = true;
+    btnNext.disabled = true;
+    btnSave.disabled = true;
+    return;
+  }
 
-    btnPrev.disabled = current === 0;
-    btnNext.disabled = current === imgs.length - 1;
+  current = Math.max(0, Math.min(current, imgs.length - 1));
+
+  const img = document.createElement('img');
+  img.src = imgs[current].src;
+  holder.appendChild(img);
+
+  counterEl.textContent = `${current + 1} / ${imgs.length}`;
+
+  dotsEl.innerHTML = '';
+  imgs.forEach((_, index) => {
+    const dot = document.createElement('div');
+    dot.className = 'dot' + (index === current ? ' active' : '');
+    dot.onclick = () => {
+      current = index;
+      render();
+    };
+    dotsEl.appendChild(dot);
+  });
+
+  thumbsEl.innerHTML = '';
+  imgs.forEach((item, index) => {
+    const thumb = document.createElement('img');
+    thumb.src = item.src;
+    thumb.className = 'thumb' + (index === current ? ' active' : '');
+    thumb.onclick = () => {
+      current = index;
+      render();
+    };
+    thumbsEl.appendChild(thumb);
+  });
+
+  btnPrev.disabled = current === 0;
+  btnNext.disabled = current === imgs.length - 1;
+  btnSave.disabled = false;
 }
 
-const go = dir => {
-    const next = current + dir;
-    if (next >= 0 && next < imgs.length) {
-        current = next;
+function go(direction) {
+  const next = current + direction;
+  if (next >= 0 && next < imgs.length) {
+    current = next;
+    render();
+  }
+}
+
+function load(fileList) {
+  const files = Array.from(fileList).filter(file => file.type.startsWith('image/'));
+  if (!files.length) return;
+
+  let loaded = 0;
+  const start = imgs.length;
+
+  files.forEach(file => {
+    const reader = new FileReader();
+    reader.onload = event => {
+      imgs.push({ src: event.target.result });
+      loaded += 1;
+
+      if (loaded === files.length) {
+        current = start;
         render();
-    }
-};
+      }
+    };
+    reader.readAsDataURL(file);
+  });
+}
 
-btnPrev.onclick = () => go(-1);
-btnNext.onclick = () => go(1);
-
-document.onkeydown = e => {
-    if (e.key === 'ArrowLeft') go(-1);
-    if (e.key === 'ArrowRight') go(1);
-};
-
-let startX = 0;
-stage.ontouchstart = e => startX = e.touches[0].clientX;
-stage.ontouchend = e => {
-    const diff = e.changedTouches[0].clientX - startX;
-    if (Math.abs(diff) > 50) go(diff > 0 ? -1 : 1);
-};
 function getAspectRatioParts() {
   const [w, h] = aspectSelect.value.split(':').map(Number);
   return { w, h, ratio: w / h };
@@ -891,10 +843,7 @@ function getOutputSizeByAspect() {
   const { w, h } = getAspectRatioParts();
 
   if (w === h) {
-    return {
-      width: OUTPUT_SIZE,
-      height: OUTPUT_SIZE
-    };
+    return { width: OUTPUT_SIZE, height: OUTPUT_SIZE };
   }
 
   if (w > h) {
@@ -915,39 +864,15 @@ function applyPreviewAspect() {
   holder.style.setProperty('--camera-aspect', `${w} / ${h}`);
 }
 
-if (typeof aspectSelect !== 'undefined' && aspectSelect) {
-  aspectSelect.onchange = applyPreviewAspect;
-  applyPreviewAspect();
-}
+function updatePreviewFilter() {
+  previewBrightness = Number(brightnessRange.value);
+  previewContrast = Number(contrastRange.value);
 
-if (typeof zoomRange !== 'undefined' && zoomRange) {
-  zoomRange.oninput = () => applyZoom(zoomRange.value);
-}
+  brightnessValue.textContent = `${previewBrightness}%`;
+  contrastValue.textContent = `${previewContrast}%`;
 
-if (typeof focusModeSelect !== 'undefined' && focusModeSelect) {
-  focusModeSelect.onchange = () => applyFocusMode(focusModeSelect.value);
-}
-
-if (typeof focusRange !== 'undefined' && focusRange) {
-  focusRange.oninput = () => applyFocusDistance(focusRange.value);
-}
-
-if (typeof btnRefocus !== 'undefined' && btnRefocus) {
-  btnRefocus.onclick = refocus;
-}
-
-if (typeof brightnessRange !== 'undefined' && brightnessRange) {
-  brightnessRange.oninput = updatePreviewFilter;
-}
-
-if (typeof contrastRange !== 'undefined' && contrastRange) {
-  contrastRange.oninput = updatePreviewFilter;
-}
-
-if (typeof exposureRange !== 'undefined' && exposureRange) {
-  exposureRange.oninput = () => {
-    applyExposureCompensation(exposureRange.value);
-  };
+  holder.style.setProperty('--preview-brightness', `${previewBrightness}%`);
+  holder.style.setProperty('--preview-contrast', `${previewContrast}%`);
 }
 
 function getVideoTrack() {
@@ -957,12 +882,12 @@ function getVideoTrack() {
 
 function setupCameraControls() {
   cameraTrack = getVideoTrack();
-  if (!cameraTrack) return;
+  cameraCapabilities = cameraTrack && cameraTrack.getCapabilities
+    ? cameraTrack.getCapabilities()
+    : {};
 
-  cameraCapabilities = cameraTrack.getCapabilities ? cameraTrack.getCapabilities() : {};
   const notes = [];
 
-  // ズーム対応確認
   if (cameraCapabilities.zoom) {
     hardwareZoomSupported = true;
 
@@ -974,12 +899,12 @@ function setupCameraControls() {
     zoomRange.max = max;
     zoomRange.step = step;
     zoomRange.value = min;
-
     currentZoom = Number(min);
-    zoomValue.textContent = `${currentZoom.toFixed(1)}x`;
     zoomRange.disabled = false;
+    zoomValue.textContent = `${currentZoom.toFixed(1)}x`;
+    holder.style.setProperty('--digital-zoom', '1');
 
-    notes.push('ズーム: カメラ側ズーム対応');
+    notes.push('ズーム: カメラ側対応');
   } else {
     hardwareZoomSupported = false;
 
@@ -987,15 +912,15 @@ function setupCameraControls() {
     zoomRange.max = 4;
     zoomRange.step = 0.1;
     zoomRange.value = 1;
+    currentZoom = 1;
     zoomRange.disabled = false;
+    zoomValue.textContent = '1.0x';
 
-    notes.push('ズーム: 端末非対応のためデジタルズーム');
+    notes.push('ズーム: デジタルズーム');
   }
 
-  // フォーカス対応確認
   if (cameraCapabilities.focusMode && cameraCapabilities.focusMode.length) {
     focusModeSelect.innerHTML = '';
-
     cameraCapabilities.focusMode.forEach(mode => {
       const option = document.createElement('option');
       option.value = mode;
@@ -1009,22 +934,35 @@ function setupCameraControls() {
 
     focusModeSelect.disabled = false;
     btnRefocus.disabled = false;
-
-    notes.push('フォーカス: モード変更対応');
+    notes.push('フォーカス: 対応');
   } else {
-    notes.push('フォーカス: このブラウザでは制御不可の可能性あり');
+    focusModeSelect.disabled = true;
+    btnRefocus.disabled = true;
+    notes.push('フォーカス: 非対応または自動のみ');
   }
 
-  // 手動フォーカス距離
   if (cameraCapabilities.focusDistance) {
-    const min = cameraCapabilities.focusDistance.min ?? 0;
-    const max = cameraCapabilities.focusDistance.max ?? 1;
-    const step = cameraCapabilities.focusDistance.step ?? 0.01;
+    const cap = cameraCapabilities.focusDistance;
+    focusRange.min = cap.min ?? 0;
+    focusRange.max = cap.max ?? 1;
+    focusRange.step = cap.step || 0.01;
+  } else {
+    focusRange.disabled = true;
+  }
 
-    focusRange.min = min;
-    focusRange.max = max;
-    focusRange.step = step;
-    focusRange.value = min;
+  if (cameraCapabilities.exposureCompensation) {
+    const cap = cameraCapabilities.exposureCompensation;
+    exposureRange.min = cap.min;
+    exposureRange.max = cap.max;
+    exposureRange.step = cap.step || 0.1;
+    exposureRange.value = 0;
+    exposureRange.disabled = false;
+    exposureValue.textContent = '0';
+    notes.push('露出補正: 対応');
+  } else {
+    exposureRange.disabled = true;
+    exposureValue.textContent = '非対応';
+    notes.push('露出補正: 非対応');
   }
 
   cameraSupportNote.textContent = notes.join(' / ');
@@ -1034,18 +972,20 @@ async function applyZoom(value) {
   currentZoom = Number(value);
   zoomValue.textContent = `${currentZoom.toFixed(1)}x`;
 
-  // プレビュー用の見た目ズーム
-  holder.style.setProperty('--digital-zoom', currentZoom);
-
-  if (!cameraTrack || !hardwareZoomSupported) return;
-
-  try {
-    await cameraTrack.applyConstraints({
-      advanced: [{ zoom: currentZoom }]
-    });
-  } catch (err) {
-    console.warn('hardware zoom failed, using digital zoom only', err);
+  if (hardwareZoomSupported && cameraTrack) {
+    try {
+      await cameraTrack.applyConstraints({
+        advanced: [{ zoom: currentZoom }]
+      });
+      holder.style.setProperty('--digital-zoom', '1');
+      return;
+    } catch (error) {
+      console.warn('hardware zoom failed, using digital zoom', error);
+      hardwareZoomSupported = false;
+    }
   }
+
+  holder.style.setProperty('--digital-zoom', currentZoom);
 }
 
 async function applyFocusMode(mode) {
@@ -1056,13 +996,9 @@ async function applyFocusMode(mode) {
       advanced: [{ focusMode: mode }]
     });
 
-    if (mode === 'manual' && cameraCapabilities.focusDistance) {
-      focusRange.disabled = false;
-    } else {
-      focusRange.disabled = true;
-    }
-  } catch (err) {
-    console.warn('focus mode failed', err);
+    focusRange.disabled = !(mode === 'manual' && cameraCapabilities.focusDistance);
+  } catch (error) {
+    console.warn('focus mode failed', error);
     alert('この端末/ブラウザではフォーカス制御に対応していない可能性があります。');
   }
 }
@@ -1077,8 +1013,8 @@ async function applyFocusDistance(value) {
         focusDistance: Number(value)
       }]
     });
-  } catch (err) {
-    console.warn('manual focus failed', err);
+  } catch (error) {
+    console.warn('manual focus failed', error);
   }
 }
 
@@ -1086,76 +1022,16 @@ async function refocus() {
   if (!cameraTrack) return;
 
   try {
-    if (
-      cameraCapabilities.focusMode &&
-      cameraCapabilities.focusMode.includes('single-shot')
-    ) {
-      await cameraTrack.applyConstraints({
-        advanced: [{ focusMode: 'single-shot' }]
-      });
-    } else if (
-      cameraCapabilities.focusMode &&
-      cameraCapabilities.focusMode.includes('continuous')
-    ) {
-      await cameraTrack.applyConstraints({
-        advanced: [{ focusMode: 'continuous' }]
-      });
+    if (cameraCapabilities.focusMode && cameraCapabilities.focusMode.includes('single-shot')) {
+      await cameraTrack.applyConstraints({ advanced: [{ focusMode: 'single-shot' }] });
+    } else if (cameraCapabilities.focusMode && cameraCapabilities.focusMode.includes('continuous')) {
+      await cameraTrack.applyConstraints({ advanced: [{ focusMode: 'continuous' }] });
     } else {
       alert('この端末/ブラウザではフォーカス再調整に対応していない可能性があります。');
     }
-  } catch (err) {
-    console.warn('refocus failed', err);
+  } catch (error) {
+    console.warn('refocus failed', error);
     alert('フォーカス再調整に失敗しました。');
-  }
-}
-
-zoomRange.oninput = () => applyZoom(zoomRange.value);
-focusModeSelect.onchange = () => applyFocusMode(focusModeSelect.value);
-focusRange.oninput = () => applyFocusDistance(focusRange.value);
-btnRefocus.onclick = refocus;
-
-    function updatePreviewFilter() {
-  previewBrightness = Number(brightnessRange.value);
-  previewContrast = Number(contrastRange.value);
-
-  brightnessValue.textContent = `${previewBrightness}%`;
-  contrastValue.textContent = `${previewContrast}%`;
-
-  holder.style.setProperty('--preview-brightness', `${previewBrightness}%`);
-  holder.style.setProperty('--preview-contrast', `${previewContrast}%`);
-}
-
-brightnessRange.oninput = updatePreviewFilter;
-contrastRange.oninput = updatePreviewFilter;
-
-updatePreviewFilter(); 
-
-function setupExposureControl() {
-  if (!cameraTrack || !cameraTrack.getCapabilities) {
-    exposureRange.disabled = true;
-    exposureValue.textContent = '非対応';
-    return;
-  }
-
-  cameraCapabilities = cameraTrack.getCapabilities();
-
-  if (cameraCapabilities.exposureCompensation) {
-    const cap = cameraCapabilities.exposureCompensation;
-
-    exposureRange.min = cap.min;
-    exposureRange.max = cap.max;
-    exposureRange.step = cap.step || 0.1;
-    exposureRange.value = 0;
-
-    exposureRange.disabled = false;
-    exposureValue.textContent = '0';
-
-    cameraSupportNote.textContent = '露出補正: 対応 / タップフォーカス: 疑似UI + 再フォーカス試行';
-  } else {
-    exposureRange.disabled = true;
-    exposureValue.textContent = '非対応';
-
-    cameraSupportNote.textContent = '露出補正: 非対応。この場合は明るさ調整で代用してください。';
   }
 }
 
@@ -1169,37 +1045,9 @@ async function applyExposureCompensation(value) {
     await cameraTrack.applyConstraints({
       advanced: [{ exposureCompensation: exposure }]
     });
-  } catch (err) {
-    console.warn('exposure compensation failed', err);
+  } catch (error) {
+    console.warn('exposure compensation failed', error);
     exposureValue.textContent = '失敗';
-  }
-}
-
-exposureRange.oninput = () => {
-  applyExposureCompensation(exposureRange.value);
-};
-
-   async function refocusAtPoint(x, y) {
-  if (!cameraTrack || !cameraCapabilities) return;
-
-  try {
-    if (
-      cameraCapabilities.focusMode &&
-      cameraCapabilities.focusMode.includes('single-shot')
-    ) {
-      await cameraTrack.applyConstraints({
-        advanced: [{ focusMode: 'single-shot' }]
-      });
-    } else if (
-      cameraCapabilities.focusMode &&
-      cameraCapabilities.focusMode.includes('continuous')
-    ) {
-      await cameraTrack.applyConstraints({
-        advanced: [{ focusMode: 'continuous' }]
-      });
-    }
-  } catch (err) {
-    console.warn('tap refocus failed', err);
   }
 }
 
@@ -1212,17 +1060,11 @@ function showFocusMarker(x, y) {
   focusMarker.classList.add('show');
 }
 
-holder.addEventListener('click', async (event) => {
-  if (!cameraStream) return;
-
-  const rect = holder.getBoundingClientRect();
-  const x = event.clientX - rect.left;
-  const y = event.clientY - rect.top;
-
+async function refocusAtPoint(x, y) {
   showFocusMarker(x, y);
-  await refocusAtPoint(x, y);
-});
-    
+  await refocus();
+}
+
 async function startCamera() {
   try {
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
@@ -1230,40 +1072,46 @@ async function startCamera() {
       return;
     }
 
-    cameraStream = await navigator.mediaDevices.getUserMedia({
-      video: {
-        facingMode: { ideal: 'environment' },
-        width: { ideal: 3072 },
-        height: { ideal: 3072 }
-      },
-      audio: false
-    });
+    if (cameraStream) {
+      stopCamera();
+    }
+
+    applyPreviewAspect();
+    const { ratio } = getAspectRatioParts();
+
+    try {
+      cameraStream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          facingMode: { ideal: 'environment' },
+          width: { ideal: OUTPUT_SIZE },
+          height: { ideal: OUTPUT_SIZE },
+          aspectRatio: { ideal: ratio }
+        },
+        audio: false
+      });
+    } catch (firstError) {
+      console.warn('high resolution camera request failed, retrying default camera', firstError);
+      cameraStream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          facingMode: { ideal: 'environment' }
+        },
+        audio: false
+      });
+    }
 
     cameraVideo.srcObject = cameraStream;
+    await cameraVideo.play();
+
     holder.classList.add('camera-on');
-
-    cameraTrack = cameraStream.getVideoTracks()[0] || null;
-    cameraCapabilities = cameraTrack && cameraTrack.getCapabilities
-      ? cameraTrack.getCapabilities()
-      : {};
-
-    if (typeof setupExposureControl === 'function') {
-      setupExposureControl();
-    }
-
-    if (typeof updatePreviewFilter === 'function') {
-      updatePreviewFilter();
-    }
+    setupCameraControls();
+    updatePreviewFilter();
 
     btnCamera.textContent = '■ カメラ停止';
     btnShot.disabled = false;
-
-    if (typeof btnRetake !== 'undefined' && btnRetake) {
-      btnRetake.disabled = true;
-    }
-  } catch (err) {
-    console.error(err);
-    alert('カメラを起動できませんでした: ' + err.message);
+    btnRetake.disabled = true;
+  } catch (error) {
+    console.error(error);
+    alert('カメラを起動できませんでした: ' + (error.message || error.name || error));
   }
 }
 
@@ -1281,7 +1129,10 @@ function stopCamera() {
 
   btnCamera.textContent = '📷 カメラ起動';
   btnShot.disabled = true;
-
+  zoomRange.disabled = true;
+  focusModeSelect.disabled = true;
+  focusRange.disabled = true;
+  btnRefocus.disabled = true;
   exposureRange.disabled = true;
   exposureValue.textContent = '非対応';
 }
@@ -1289,6 +1140,10 @@ function stopCamera() {
 function drawVideoCover(ctx, video, w, h) {
   const vw = video.videoWidth;
   const vh = video.videoHeight;
+
+  if (!vw || !vh) {
+    throw new Error('カメラ映像の読み込みが完了していません。');
+  }
 
   const videoRatio = vw / vh;
   const canvasRatio = w / h;
@@ -1306,10 +1161,9 @@ function drawVideoCover(ctx, video, w, h) {
     sy = (vh - sh) / 2;
   }
 
-  // デジタルズーム用に、さらに中央を切り出す
-  const zoom = Math.max(1, currentZoom || 1);
-  const zoomedSw = sw / zoom;
-  const zoomedSh = sh / zoom;
+  const digitalZoom = hardwareZoomSupported ? 1 : Math.max(1, currentZoom || 1);
+  const zoomedSw = sw / digitalZoom;
+  const zoomedSh = sh / digitalZoom;
   sx += (sw - zoomedSw) / 2;
   sy += (sh - zoomedSh) / 2;
   sw = zoomedSw;
@@ -1318,69 +1172,64 @@ function drawVideoCover(ctx, video, w, h) {
   ctx.drawImage(video, sx, sy, sw, sh, 0, 0, w, h);
 }
 
-function captureFromCamera()
+function captureFromCamera() {
+  try {
+    if (!cameraStream || !cameraVideo.videoWidth) {
+      alert('カメラ映像がまだ準備できていません。');
+      return;
+    }
+
+    const output = getOutputSizeByAspect();
+    const w = output.width;
+    const h = output.height;
+
+    captureCanvas.width = w;
+    captureCanvas.height = h;
+
+    const ctx = captureCanvas.getContext('2d');
+    ctx.filter = `brightness(${previewBrightness}%) contrast(${previewContrast}%)`;
+    drawVideoCover(ctx, cameraVideo, w, h);
+    ctx.filter = 'none';
+
+    const src = captureCanvas.toDataURL('image/jpeg', 0.95);
+
+    imgs.push({ src });
+    current = imgs.length - 1;
+    lastCameraShotIndex = current;
+
+    btnSave.disabled = false;
+    btnRetake.disabled = false;
+
+    stopCamera();
+    render();
+  } catch (error) {
+    console.error(error);
+    alert('撮影に失敗しました: ' + (error.message || error));
+  }
+}
+
 function retakePhoto() {
   if (lastCameraShotIndex >= 0 && imgs[lastCameraShotIndex]) {
     imgs.splice(lastCameraShotIndex, 1);
 
     if (imgs.length === 0) {
-      current = -1;
+      current = 0;
     } else {
       current = Math.max(0, Math.min(lastCameraShotIndex - 1, imgs.length - 1));
     }
 
     lastCameraShotIndex = -1;
-    btnSave.disabled = imgs.length === 0;
     btnRetake.disabled = true;
-
     render();
   }
 
   startCamera();
 }
-{
-  if (!cameraStream || !cameraVideo.videoWidth) return;
 
-const output = getOutputSizeByAspect();
-const w = output.width;
-const h = output.height;
-
-captureCanvas.width = w;
-captureCanvas.height = h;
-
-  const ctx = captureCanvas.getContext('2d');
-ctx.filter = `brightness(${previewBrightness}%) contrast(${previewContrast}%)`;
-drawVideoCover(ctx, cameraVideo, w, h);
-ctx.filter = 'none';
-
-  const src = captureCanvas.toDataURL('image/jpeg', 0.95);
-
- imgs.push({ src });
-current = imgs.length - 1;
-lastCameraShotIndex = current;
-
-btnSave.disabled = false;
-btnRetake.disabled = false;
-
-stopCamera();
-render();
-
-btnCamera.onclick = () => {
-  if (cameraStream) {
-    stopCamera();
-  } else {
-    startCamera();
-  }
-};
-
-btnShot.onclick = captureFromCamera;
-btnRetake.onclick = retakePhoto;
-btnSave.onclick = saveCurrentImage;
-
-render();
 function dataURLToBlob(dataURL) {
   const parts = dataURL.split(',');
-  const mime = parts[0].match(/:(.*?);/)[1];
+  const mimeMatch = parts[0].match(/:(.*?);/);
+  const mime = mimeMatch ? mimeMatch[1] : 'image/jpeg';
   const binary = atob(parts[1]);
   const length = binary.length;
   const array = new Uint8Array(length);
@@ -1399,67 +1248,107 @@ async function saveCurrentImage() {
   }
 
   const blob = dataURLToBlob(imgs[current].src);
-  const filename = `pokestop-postcard-${Date.now()}.jpg`;
+  const filename = `pokestop-postcard-${new Date().toISOString().replace(/[:.]/g, '-')}.jpg`;
   const file = new File([blob], filename, { type: 'image/jpeg' });
 
-  // iPhone / Android の共有メニューを優先
-  if (
-    navigator.share &&
-    navigator.canShare &&
-    navigator.canShare({ files: [file] })
-  ) {
+  if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
     try {
       await navigator.share({
         files: [file],
         title: 'ポストカード画像'
       });
       return;
-    } catch (err) {
-      console.log('共有がキャンセルされました', err);
+    } catch (error) {
+      console.log('共有がキャンセルされました', error);
     }
   }
 
-  // 共有できない場合はダウンロード
   const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
 
-  setTimeout(() => {
-    URL.revokeObjectURL(url);
-  }, 1000);
-}
-  
-  render();
-    if (btnCamera) {
-  btnCamera.addEventListener('click', async () => {
-    alert('カメラ起動ボタンは反応しています');
-
-    if (cameraStream) {
-      stopCamera();
-    } else {
-      await startCamera();
-    }
-  });
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-if (btnShot) {
-  btnShot.addEventListener('click', captureFromCamera);
-}
+btnDisk.addEventListener('click', () => setMode('disk'));
+btnGift.addEventListener('click', () => setMode('gift'));
 
-if (btnSave) {
-  btnSave.addEventListener('click', saveCurrentImage);
-}
+btnGrid.addEventListener('click', () => {
+  gridState = (gridState + 1) % 3;
+  grid3x3.className = 'grid-overlay' + (gridState === 1 ? ' grid-3x3' : '');
+  gridCenter.className = 'grid-overlay' + (gridState === 2 ? ' grid-center' : '');
+  btnGrid.classList.toggle('active', gridState !== 0);
+});
 
-if (typeof btnRetake !== 'undefined' && btnRetake) {
-  btnRetake.addEventListener('click', retakePhoto);
-}
+fileInput.addEventListener('change', event => load(event.target.files));
 
+const preventDefault = event => event.preventDefault();
+['dragover', 'drop'].forEach(eventName => {
+  stage.addEventListener(eventName, preventDefault);
+  dropzone.addEventListener(eventName, preventDefault);
+});
+
+stage.addEventListener('dragenter', () => stage.classList.add('drag-over'));
+stage.addEventListener('dragleave', () => stage.classList.remove('drag-over'));
+stage.addEventListener('drop', event => {
+  stage.classList.remove('drag-over');
+  load(event.dataTransfer.files);
+});
+
+btnPrev.addEventListener('click', () => go(-1));
+btnNext.addEventListener('click', () => go(1));
+
+document.addEventListener('keydown', event => {
+  if (event.key === 'ArrowLeft') go(-1);
+  if (event.key === 'ArrowRight') go(1);
+});
+
+let startX = 0;
+stage.addEventListener('touchstart', event => {
+  startX = event.touches[0].clientX;
+});
+stage.addEventListener('touchend', event => {
+  const diff = event.changedTouches[0].clientX - startX;
+  if (Math.abs(diff) > 50) go(diff > 0 ? -1 : 1);
+});
+
+aspectSelect.addEventListener('change', applyPreviewAspect);
+brightnessRange.addEventListener('input', updatePreviewFilter);
+contrastRange.addEventListener('input', updatePreviewFilter);
+zoomRange.addEventListener('input', () => applyZoom(zoomRange.value));
+focusModeSelect.addEventListener('change', () => applyFocusMode(focusModeSelect.value));
+focusRange.addEventListener('input', () => applyFocusDistance(focusRange.value));
+btnRefocus.addEventListener('click', refocus);
+exposureRange.addEventListener('input', () => applyExposureCompensation(exposureRange.value));
+
+holder.addEventListener('click', event => {
+  if (!cameraStream) return;
+
+  const rect = holder.getBoundingClientRect();
+  const x = event.clientX - rect.left;
+  const y = event.clientY - rect.top;
+  refocusAtPoint(x, y);
+});
+
+btnCamera.addEventListener('click', () => {
+  if (cameraStream) {
+    stopCamera();
+  } else {
+    startCamera();
+  }
+});
+
+btnShot.addEventListener('click', captureFromCamera);
+btnRetake.addEventListener('click', retakePhoto);
+btnSave.addEventListener('click', saveCurrentImage);
+
+applyPreviewAspect();
+updatePreviewFilter();
 render();
 </script>
-
 </body>
 </html>
