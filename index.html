@@ -382,6 +382,11 @@
   margin-top: 8px;
 }
 
+  @media (min-width: 520px) {
+  .camera-actions {
+    grid-template-columns: 1fr 1fr 1fr;
+  }
+       
 .camera-btn {
   border: 1px solid var(--border);
   background: var(--surface);
@@ -480,6 +485,7 @@
 <div class="camera-actions">
   <button class="camera-btn" id="btn-camera">📷 カメラ起動</button>
   <button class="camera-btn" id="btn-shot" disabled>この枠で撮影</button>
+  <button class="camera-btn" id="btn-save" disabled>保存/共有</button>
 </div>
 
 <canvas id="captureCanvas" hidden></canvas>
@@ -517,6 +523,7 @@ const gridCenter = document.getElementById('grid-center');
 const cameraVideo = document.getElementById('cameraVideo');
 const btnCamera = document.getElementById('btn-camera');
 const btnShot = document.getElementById('btn-shot');
+const btnSave = document.getElementById('btn-save');
 const captureCanvas = document.getElementById('captureCanvas');
 
 let cameraStream = null;
@@ -708,10 +715,12 @@ function captureFromCamera() {
   const src = captureCanvas.toDataURL('image/jpeg', 0.95);
 
   imgs.push({ src });
-  current = imgs.length - 1;
+current = imgs.length - 1;
 
-  stopCamera();
-  render();
+btnSave.disabled = false;
+
+stopCamera();
+render();
 }
 
 btnCamera.onclick = () => {
@@ -723,6 +732,61 @@ btnCamera.onclick = () => {
 };
 
 btnShot.onclick = captureFromCamera;
+btnSave.onclick = saveCurrentImage;
+function dataURLToBlob(dataURL) {
+  const parts = dataURL.split(',');
+  const mime = parts[0].match(/:(.*?);/)[1];
+  const binary = atob(parts[1]);
+  const length = binary.length;
+  const array = new Uint8Array(length);
+
+  for (let i = 0; i < length; i++) {
+    array[i] = binary.charCodeAt(i);
+  }
+
+  return new Blob([array], { type: mime });
+}
+
+async function saveCurrentImage() {
+  if (current < 0 || !imgs[current] || !imgs[current].src) {
+    alert('保存する画像がありません。先に撮影してください。');
+    return;
+  }
+
+  const blob = dataURLToBlob(imgs[current].src);
+  const filename = `pokestop-postcard-${Date.now()}.jpg`;
+  const file = new File([blob], filename, { type: 'image/jpeg' });
+
+  // iPhone / Android の共有メニューを優先
+  if (
+    navigator.share &&
+    navigator.canShare &&
+    navigator.canShare({ files: [file] })
+  ) {
+    try {
+      await navigator.share({
+        files: [file],
+        title: 'ポストカード画像'
+      });
+      return;
+    } catch (err) {
+      console.log('共有がキャンセルされました', err);
+    }
+  }
+
+  // 共有できない場合はダウンロード
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+
+  setTimeout(() => {
+    URL.revokeObjectURL(url);
+  }, 1000);
+}
   
   render();
 </script>
