@@ -759,7 +759,6 @@ const aspectSelect = document.getElementById('aspectSelect');
 const focusModeSelect = document.getElementById('focusModeSelect');
 const focusRange = document.getElementById('focusRange');
 const btnRefocus = document.getElementById('btn-refocus');
-const cameraSupportNote = document.getElementById('cameraSupportNote');
 
 let cameraStream = null;
 let cameraTrack = null;
@@ -916,8 +915,40 @@ function applyPreviewAspect() {
   holder.style.setProperty('--camera-aspect', `${w} / ${h}`);
 }
 
-aspectSelect.onchange = applyPreviewAspect;
-applyPreviewAspect();
+if (typeof aspectSelect !== 'undefined' && aspectSelect) {
+  aspectSelect.onchange = applyPreviewAspect;
+  applyPreviewAspect();
+}
+
+if (typeof zoomRange !== 'undefined' && zoomRange) {
+  zoomRange.oninput = () => applyZoom(zoomRange.value);
+}
+
+if (typeof focusModeSelect !== 'undefined' && focusModeSelect) {
+  focusModeSelect.onchange = () => applyFocusMode(focusModeSelect.value);
+}
+
+if (typeof focusRange !== 'undefined' && focusRange) {
+  focusRange.oninput = () => applyFocusDistance(focusRange.value);
+}
+
+if (typeof btnRefocus !== 'undefined' && btnRefocus) {
+  btnRefocus.onclick = refocus;
+}
+
+if (typeof brightnessRange !== 'undefined' && brightnessRange) {
+  brightnessRange.oninput = updatePreviewFilter;
+}
+
+if (typeof contrastRange !== 'undefined' && contrastRange) {
+  contrastRange.oninput = updatePreviewFilter;
+}
+
+if (typeof exposureRange !== 'undefined' && exposureRange) {
+  exposureRange.oninput = () => {
+    applyExposureCompensation(exposureRange.value);
+  };
+}
 
 function getVideoTrack() {
   if (!cameraStream) return null;
