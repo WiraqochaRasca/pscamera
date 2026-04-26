@@ -510,6 +510,17 @@
     .camera-controls input,
     .camera-controls select { width: 100%; }
 
+    .adjustment-row {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .adjustment-mode {
+      min-height: 34px;
+    }
+
 
 
     .camera-zoom-panel {
@@ -701,14 +712,26 @@
       <div class="camera-controls" id="cameraControls">
         <label>
           明るさ
-          <input type="range" id="brightnessRange" min="50" max="150" step="1" value="100">
-          <span id="brightnessValue">100%</span>
+          <div class="adjustment-row">
+            <select id="brightnessMode" class="adjustment-mode">
+              <option value="auto" selected>自動</option>
+              <option value="manual">手動</option>
+            </select>
+            <span id="brightnessValue">100%</span>
+          </div>
+          <input type="range" id="brightnessRange" min="50" max="150" step="1" value="100" disabled>
         </label>
 
         <label>
           コントラスト
-          <input type="range" id="contrastRange" min="50" max="150" step="1" value="100">
-          <span id="contrastValue">100%</span>
+          <div class="adjustment-row">
+            <select id="contrastMode" class="adjustment-mode">
+              <option value="auto" selected>自動</option>
+              <option value="manual">手動</option>
+            </select>
+            <span id="contrastValue">100%</span>
+          </div>
+          <input type="range" id="contrastRange" min="50" max="150" step="1" value="100" disabled>
         </label>
 
 
@@ -751,7 +774,7 @@
 
       <div class="footer">
         <span>PC: 矢印キーで切替 / スマホ: スワイプ</span>
-        <span>v1.03-order-focus-level</span>
+        <span>v1.04-auto-brightness-contrast</span>
       </div>
     </div>
   </div>
@@ -776,6 +799,9 @@ let maxZoom = 4;
 let zoomStep = 0.1;
 let levelGuideStatus = '水平線: 固定表示';
 let levelGuideActive = false;
+let autoAdjustTimer = null;
+const autoAdjustCanvas = document.createElement('canvas');
+const autoAdjustCtx = autoAdjustCanvas.getContext('2d', { willReadFrequently: true });
 
 const OUTPUT_SIZE = 3072;
 
@@ -804,8 +830,10 @@ const btnRetake = document.getElementById('btn-retake');
 const btnSave = document.getElementById('btn-save');
 const captureCanvas = document.getElementById('captureCanvas');
 
+const brightnessMode = document.getElementById('brightnessMode');
 const brightnessRange = document.getElementById('brightnessRange');
 const brightnessValue = document.getElementById('brightnessValue');
+const contrastMode = document.getElementById('contrastMode');
 const contrastRange = document.getElementById('contrastRange');
 const contrastValue = document.getElementById('contrastValue');
 const zoomRange = document.getElementById('zoomRange');
@@ -942,15 +970,120 @@ function applyPreviewAspect() {
   holder.style.setProperty('--camera-aspect', `${w} / ${h}`);
 }
 
-function updatePreviewFilter() {
-  previewBrightness = Number(brightnessRange.value);
-  previewContrast = Number(contrastRange.value);
+function clampValue(value, min, max) {
+  return Math.max(min, Math.min(max, value));
+}
 
+function setPreviewFilter(brightness, contrast) {
+  previewBrightness = Math.round(clampValue(Number(brightness), 50, 150));
+  previewContrast = Math.round(clampValue(Number(contrast), 50, 150));
+
+  brightnessRange.value = previewBrightness;
+  contrastRange.value = previewContrast;
   brightnessValue.textContent = `${previewBrightness}%`;
   contrastValue.textContent = `${previewContrast}%`;
 
   holder.style.setProperty('--preview-brightness', `${previewBrightness}%`);
   holder.style.setProperty('--preview-contrast', `${previewContrast}%`);
+}
+
+function isBrightnessAuto() {
+  return brightnessMode.value === 'auto';
+}
+
+function isContrastAuto() {
+  return contrastMode.value === 'auto';
+}
+
+function updateAdjustmentControlState() {
+  brightnessRange.disabled = isBrightnessAuto();
+  contrastRange.disabled = isContrastAuto();
+
+  if (!isBrightnessAuto()) {
+    previewBrightness = Number(brightnessRange.value);
+  }
+
+  if (!isContrastAuto()) {
+    previewContrast = Number(contrastRange.value);
+  }
+
+  setPreviewFilter(previewBrightness, previewContrast);
+
+  if (cameraStream && (isBrightnessAuto() || isContrastAuto())) {
+    startAutoAdjustment();
+  } else if (!isBrightnessAuto() && !isContrastAuto()) {
+    stopAutoAdjustment();
+  }
+}
+
+function updatePreviewFilter() {
+  if (!isBrightnessAuto()) {
+    previewBrightness = Number(brightnessRange.value);
+  }
+
+  if (!isContrastAuto()) {
+    previewContrast = Number(contrastRange.value);
+  }
+
+  setPreviewFilter(previewBrightness, previewContrast);
+}
+
+function runAutoAdjustment() {
+  if (!cameraStream || !cameraVideo.videoWidth || !autoAdjustCtx) return;
+  if (!isBrightnessAuto() && !isContrastAuto()) return;
+
+  const sampleSize = 64;
+  autoAdjustCanvas.width = sampleSize;
+  autoAdjustCanvas.height = sampleSize;
+
+  try {
+    autoAdjustCtx.drawImage(cameraVideo, 0, 0, sampleSize, sampleSize);
+    const pixels = autoAdjustCtx.getImageData(0, 0, sampleSize, sampleSize).data;
+
+    let sum = 0;
+    let sumSq = 0;
+    let count = 0;
+
+    for (let i = 0; i < pixels.length; i += 16) {
+      const r = pixels[i];
+      const g = pixels[i + 1];
+      const b = pixels[i + 2];
+      const luminance = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+      sum += luminance;
+      sumSq += luminance * luminance;
+      count += 1;
+    }
+
+    if (!count) return;
+
+    const mean = sum / count;
+    const variance = Math.max(0, sumSq / count - mean * mean);
+    const stdDev = Math.sqrt(variance);
+
+    const nextBrightness = isBrightnessAuto()
+      ? clampValue(100 + (128 - mean) * 0.45, 65, 140)
+      : previewBrightness;
+
+    const nextContrast = isContrastAuto()
+      ? clampValue(100 + (52 - stdDev) * 0.65, 75, 135)
+      : previewContrast;
+
+    setPreviewFilter(nextBrightness, nextContrast);
+  } catch (error) {
+    console.warn('auto brightness/contrast failed', error);
+  }
+}
+
+function startAutoAdjustment() {
+  if (autoAdjustTimer) return;
+  runAutoAdjustment();
+  autoAdjustTimer = setInterval(runAutoAdjustment, 500);
+}
+
+function stopAutoAdjustment() {
+  if (!autoAdjustTimer) return;
+  clearInterval(autoAdjustTimer);
+  autoAdjustTimer = null;
 }
 
 function getVideoTrack() {
@@ -1276,7 +1409,7 @@ async function startCamera() {
 
     holder.classList.add('camera-on');
     setupCameraControls();
-    updatePreviewFilter();
+    updateAdjustmentControlState();
 
     btnCamera.textContent = '■ カメラ停止';
     btnShot.disabled = false;
@@ -1288,6 +1421,8 @@ async function startCamera() {
 }
 
 function stopCamera() {
+  stopAutoAdjustment();
+
   if (cameraStream) {
     cameraStream.getTracks().forEach(track => track.stop());
     cameraStream = null;
@@ -1495,6 +1630,8 @@ stage.addEventListener('touchend', event => {
 });
 
 aspectSelect.addEventListener('change', applyPreviewAspect);
+brightnessMode.addEventListener('change', updateAdjustmentControlState);
+contrastMode.addEventListener('change', updateAdjustmentControlState);
 brightnessRange.addEventListener('input', updatePreviewFilter);
 contrastRange.addEventListener('input', updatePreviewFilter);
 zoomRange.addEventListener('input', () => applyZoom(zoomRange.value));
@@ -1534,7 +1671,7 @@ btnRetake.addEventListener('click', retakePhoto);
 btnSave.addEventListener('click', saveCurrentImage);
 
 applyPreviewAspect();
-updatePreviewFilter();
+updateAdjustmentControlState();
 render();
 </script>
 </body>
