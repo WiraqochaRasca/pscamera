@@ -1429,6 +1429,31 @@ async function saveCurrentImage() {
 }
   
   render();
+    if (btnCamera) {
+  btnCamera.addEventListener('click', async () => {
+    alert('カメラ起動ボタンは反応しています');
+
+    if (cameraStream) {
+      stopCamera();
+    } else {
+      await startCamera();
+    }
+  });
+}
+
+if (btnShot) {
+  btnShot.addEventListener('click', captureFromCamera);
+}
+
+if (btnSave) {
+  btnSave.addEventListener('click', saveCurrentImage);
+}
+
+if (typeof btnRetake !== 'undefined' && btnRetake) {
+  btnRetake.addEventListener('click', retakePhoto);
+}
+
+render();
 </script>
 
 </body>
