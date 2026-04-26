@@ -489,6 +489,44 @@
     .camera-controls input,
     .camera-controls select { width: 100%; }
 
+
+
+    .camera-zoom-panel {
+      display: grid;
+      gap: 8px;
+      padding: 10px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--surface);
+      font-size: 14px;
+    }
+
+    .zoom-label {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      font-weight: 600;
+    }
+
+    .zoom-row {
+      display: grid;
+      grid-template-columns: auto 1fr auto auto;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .zoom-row input[type="range"] {
+      width: 100%;
+      min-width: 0;
+    }
+
+    .zoom-btn {
+      min-width: 44px;
+      padding: .65rem .75rem;
+      line-height: 1;
+    }
+
     .camera-note {
       margin: 0;
       opacity: .75;
@@ -604,6 +642,21 @@
     <div class="controls">
       <div class="thumbs" id="thumbs"></div>
 
+
+      <div class="camera-zoom-panel">
+        <label class="zoom-label">
+          <span>ズーム</span>
+          <span id="zoomValue">1.0x</span>
+        </label>
+
+        <div class="zoom-row">
+          <button class="camera-btn zoom-btn" id="btn-zoom-out" type="button" disabled>－</button>
+          <input type="range" id="zoomRange" min="1" max="4" step="0.1" value="1" disabled>
+          <button class="camera-btn zoom-btn" id="btn-zoom-in" type="button" disabled>＋</button>
+          <button class="camera-btn zoom-btn" id="btn-zoom-reset" type="button" disabled>1x</button>
+        </div>
+      </div>
+
       <div class="dropzone" id="dropzone">
         <label class="drop-label" for="fileInput">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
@@ -637,11 +690,6 @@
           <span id="contrastValue">100%</span>
         </label>
 
-        <label>
-          ズーム
-          <input type="range" id="zoomRange" min="1" max="4" step="0.1" value="1" disabled>
-          <span id="zoomValue">1.0x</span>
-        </label>
 
         <label>
           アスペクト比
@@ -702,6 +750,9 @@ let previewBrightness = 100;
 let previewContrast = 100;
 let currentZoom = 1;
 let hardwareZoomSupported = false;
+let minZoom = 1;
+let maxZoom = 4;
+let zoomStep = 0.1;
 
 const OUTPUT_SIZE = 3072;
 
@@ -736,6 +787,9 @@ const contrastRange = document.getElementById('contrastRange');
 const contrastValue = document.getElementById('contrastValue');
 const zoomRange = document.getElementById('zoomRange');
 const zoomValue = document.getElementById('zoomValue');
+const btnZoomOut = document.getElementById('btn-zoom-out');
+const btnZoomIn = document.getElementById('btn-zoom-in');
+const btnZoomReset = document.getElementById('btn-zoom-reset');
 const aspectSelect = document.getElementById('aspectSelect');
 const focusModeSelect = document.getElementById('focusModeSelect');
 const focusRange = document.getElementById('focusRange');
@@ -891,30 +945,43 @@ function setupCameraControls() {
   if (cameraCapabilities.zoom) {
     hardwareZoomSupported = true;
 
-    const min = cameraCapabilities.zoom.min ?? 1;
-    const max = cameraCapabilities.zoom.max ?? 4;
-    const step = cameraCapabilities.zoom.step ?? 0.1;
+    minZoom = cameraCapabilities.zoom.min ?? 1;
+    maxZoom = cameraCapabilities.zoom.max ?? 4;
+    zoomStep = cameraCapabilities.zoom.step ?? 0.1;
 
-    zoomRange.min = min;
-    zoomRange.max = max;
-    zoomRange.step = step;
-    zoomRange.value = min;
-    currentZoom = Number(min);
+    zoomRange.min = minZoom;
+    zoomRange.max = maxZoom;
+    zoomRange.step = zoomStep;
+    zoomRange.value = minZoom;
+    currentZoom = Number(minZoom);
     zoomRange.disabled = false;
     zoomValue.textContent = `${currentZoom.toFixed(1)}x`;
     holder.style.setProperty('--digital-zoom', '1');
+
+    if (btnZoomOut) btnZoomOut.disabled = false;
+    if (btnZoomIn) btnZoomIn.disabled = false;
+    if (btnZoomReset) btnZoomReset.disabled = false;
 
     notes.push('ズーム: カメラ側対応');
   } else {
     hardwareZoomSupported = false;
 
-    zoomRange.min = 1;
-    zoomRange.max = 4;
-    zoomRange.step = 0.1;
+    minZoom = 1;
+    maxZoom = 4;
+    zoomStep = 0.1;
+
+    zoomRange.min = minZoom;
+    zoomRange.max = maxZoom;
+    zoomRange.step = zoomStep;
     zoomRange.value = 1;
     currentZoom = 1;
     zoomRange.disabled = false;
     zoomValue.textContent = '1.0x';
+    holder.style.setProperty('--digital-zoom', '1');
+
+    if (btnZoomOut) btnZoomOut.disabled = false;
+    if (btnZoomIn) btnZoomIn.disabled = false;
+    if (btnZoomReset) btnZoomReset.disabled = false;
 
     notes.push('ズーム: デジタルズーム');
   }
@@ -969,23 +1036,30 @@ function setupCameraControls() {
 }
 
 async function applyZoom(value) {
-  currentZoom = Number(value);
-  zoomValue.textContent = `${currentZoom.toFixed(1)}x`;
+  let zoom = Number(value);
+  if (!Number.isFinite(zoom)) zoom = minZoom;
 
-  if (hardwareZoomSupported && cameraTrack) {
-    try {
-      await cameraTrack.applyConstraints({
-        advanced: [{ zoom: currentZoom }]
-      });
-      holder.style.setProperty('--digital-zoom', '1');
-      return;
-    } catch (error) {
-      console.warn('hardware zoom failed, using digital zoom', error);
-      hardwareZoomSupported = false;
-    }
+  zoom = Math.max(minZoom, Math.min(maxZoom, zoom));
+  currentZoom = zoom;
+
+  zoomRange.value = zoom;
+  zoomValue.textContent = `${zoom.toFixed(1)}x`;
+
+  // カメラ側ズーム対応時は映像自体がズームされるので、CSS拡大は重ねない。
+  // 非対応時だけプレビューと保存画像でデジタルズームする。
+  holder.style.setProperty('--digital-zoom', hardwareZoomSupported ? '1' : zoom);
+
+  if (!cameraTrack || !hardwareZoomSupported) return;
+
+  try {
+    await cameraTrack.applyConstraints({
+      advanced: [{ zoom }]
+    });
+  } catch (error) {
+    console.warn('hardware zoom failed, using digital zoom', error);
+    hardwareZoomSupported = false;
+    holder.style.setProperty('--digital-zoom', zoom);
   }
-
-  holder.style.setProperty('--digital-zoom', currentZoom);
 }
 
 async function applyFocusMode(mode) {
@@ -1130,6 +1204,10 @@ function stopCamera() {
   btnCamera.textContent = '📷 カメラ起動';
   btnShot.disabled = true;
   zoomRange.disabled = true;
+  if (btnZoomOut) btnZoomOut.disabled = true;
+  if (btnZoomIn) btnZoomIn.disabled = true;
+  if (btnZoomReset) btnZoomReset.disabled = true;
+  holder.style.setProperty('--digital-zoom', '1');
   focusModeSelect.disabled = true;
   focusRange.disabled = true;
   btnRefocus.disabled = true;
@@ -1320,6 +1398,15 @@ aspectSelect.addEventListener('change', applyPreviewAspect);
 brightnessRange.addEventListener('input', updatePreviewFilter);
 contrastRange.addEventListener('input', updatePreviewFilter);
 zoomRange.addEventListener('input', () => applyZoom(zoomRange.value));
+if (btnZoomOut) {
+  btnZoomOut.addEventListener('click', () => applyZoom(currentZoom - zoomStep));
+}
+if (btnZoomIn) {
+  btnZoomIn.addEventListener('click', () => applyZoom(currentZoom + zoomStep));
+}
+if (btnZoomReset) {
+  btnZoomReset.addEventListener('click', () => applyZoom(minZoom));
+}
 focusModeSelect.addEventListener('change', () => applyFocusMode(focusModeSelect.value));
 focusRange.addEventListener('input', () => applyFocusDistance(focusRange.value));
 btnRefocus.addEventListener('click', refocus);
