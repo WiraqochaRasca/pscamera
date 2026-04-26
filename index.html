@@ -593,6 +593,13 @@
       .camera-actions { grid-template-columns: 1fr 1fr 1fr 1fr; }
     }
   </style>
+
+  <meta name="theme-color" content="#181f26">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="ポケストカメラ">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="apple-touch-icon" href="./icons/icon-192.png">
 </head>
 <body class="mode-disk">
 
@@ -1674,5 +1681,16 @@ applyPreviewAspect();
 updateAdjustmentControlState();
 render();
 </script>
+
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('./sw.js')
+        .then(() => console.log('Service Worker registered'))
+        .catch(err => console.warn('Service Worker registration failed', err));
+    });
+  }
+</script>
+
 </body>
 </html>
