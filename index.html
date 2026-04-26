@@ -375,18 +375,6 @@
   z-index: 1;
 }
 
-.camera-actions {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-  margin-top: 8px;
-}
-
-  @media (min-width: 520px) {
-  .camera-actions {
-    grid-template-columns: 1fr 1fr 1fr;
-  }
-       
 .camera-btn {
   border: 1px solid var(--border);
   background: var(--surface);
@@ -401,26 +389,6 @@
   opacity: .45;
   cursor: default;
 } 
-      .camera-controls {
-  display: grid;
-  gap: 10px;
-  margin-top: 10px;
-  padding: 10px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--surface);
-  font-size: 14px;
-}
-
-.camera-controls label {
-  display: grid;
-  gap: 4px;
-}
-
-.camera-controls input,
-.camera-controls select {
-  width: 100%;
-}
 
 .camera-note {
   margin: 0;
@@ -437,6 +405,149 @@
   transform: scale(var(--digital-zoom, 1));
   transform-origin: center center;
 }
+ /* 撮影ガイド */
+.camera-guide {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  pointer-events: none;
+  display: none;
+}
+
+.holder.camera-on .camera-guide {
+  display: block;
+}
+
+.guide-line {
+  position: absolute;
+  background: rgba(255, 255, 255, .75);
+  box-shadow: 0 0 2px rgba(0, 0, 0, .7);
+}
+
+.guide-line-v {
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 1px;
+}
+
+.guide-line-h {
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 1px;
+}
+
+.guide-circle {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  border: 1px solid rgba(255, 255, 255, .75);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  box-shadow: 0 0 2px rgba(0, 0, 0, .7);
+}
+
+.guide-circle-outer {
+  width: 78%;
+  aspect-ratio: 1 / 1;
+}
+
+.guide-circle-inner {
+  width: 42%;
+  aspect-ratio: 1 / 1;
+  border-style: dashed;
+}
+
+.guide-level {
+  position: absolute;
+  left: 15%;
+  right: 15%;
+  top: 12%;
+  height: 2px;
+  background: rgba(255, 255, 255, .85);
+  box-shadow: 0 0 2px rgba(0, 0, 0, .7);
+}
+
+/* タップフォーカス風UI */
+.focus-marker {
+  position: absolute;
+  width: 64px;
+  height: 64px;
+  border: 2px solid rgba(255, 255, 255, .95);
+  border-radius: 50%;
+  z-index: 6;
+  pointer-events: none;
+  transform: translate(-50%, -50%) scale(.8);
+  opacity: 0;
+  box-shadow: 0 0 4px rgba(0, 0, 0, .75);
+}
+
+.focus-marker.show {
+  animation: focus-pop .75s ease-out;
+}
+
+@keyframes focus-pop {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(1.35);
+  }
+  20% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(.85);
+  }
+}
+
+/* 明るさ・コントラスト操作 */
+.camera-controls {
+  display: grid;
+  gap: 10px;
+  margin-top: 10px;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  font-size: 14px;
+}
+
+.camera-controls label {
+  display: grid;
+  gap: 4px;
+}
+
+.camera-controls input {
+  width: 100%;
+}
+
+.camera-note {
+  margin: 0;
+  opacity: .75;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+/* プレビュー映像にも補正を反映 */
+.camera-video {
+  filter: brightness(var(--preview-brightness, 100%)) contrast(var(--preview-contrast, 100%));
+}
+
+/* ボタン4つ用 */
+.camera-actions {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+@media (min-width: 520px) {
+  .camera-actions {
+    grid-template-columns: 1fr 1fr 1fr 1fr;
+  }
+}       
     </style>
 </head>
 <body class="mode-disk">
@@ -477,6 +588,18 @@
                 <div class="ring ring-1"></div>
                 <div class="holder" id="holder">
                   <video id="cameraVideo" class="camera-video" autoplay playsinline muted></video> 
+
+                    <div class="camera-guide" id="cameraGuide">
+    <div class="guide-line guide-line-v"></div>
+    <div class="guide-line guide-line-h"></div>
+    <div class="guide-circle guide-circle-outer"></div>
+    <div class="guide-circle guide-circle-inner"></div>
+    <div class="guide-level"></div>
+  </div>
+
+  <div class="focus-marker" id="focusMarker"></div>
+
+  <div id="grid-3x3" class="grid-overlay">
                   <div id="grid-3x3" class="grid-overlay">
                         <div class="line v1"></div><div class="line v2"></div>
                         <div class="line h1"></div><div class="line h2"></div>
@@ -521,8 +644,33 @@
 <div class="camera-actions">
   <button class="camera-btn" id="btn-camera">📷 カメラ起動</button>
   <button class="camera-btn" id="btn-shot" disabled>この枠で撮影</button>
+  <button class="camera-btn" id="btn-retake" disabled>撮り直し</button>
   <button class="camera-btn" id="btn-save" disabled>保存/共有</button>
 </div>
+
+<div class="camera-controls" id="cameraControls">
+  <label>
+    明るさ
+    <input type="range" id="brightnessRange" min="50" max="150" step="1" value="100">
+    <span id="brightnessValue">100%</span>
+  </label>
+
+  <label>
+    コントラスト
+    <input type="range" id="contrastRange" min="50" max="150" step="1" value="100">
+    <span id="contrastValue">100%</span>
+  </label>
+
+  <label>
+    露出補正
+    <input type="range" id="exposureRange" min="0" max="0" step="1" value="0" disabled>
+    <span id="exposureValue">非対応</span>
+  </label>
+
+  <p class="camera-note" id="cameraSupportNote"></p>
+</div>
+
+<canvas id="captureCanvas" hidden></canvas>
 <div class="camera-controls" id="cameraControls">
   <label>
     ズーム
@@ -597,6 +745,14 @@ const btnShot = document.getElementById('btn-shot');
 const btnSave = document.getElementById('btn-save');
 const captureCanvas = document.getElementById('captureCanvas');
 
+const brightnessRange = document.getElementById('brightnessRange');
+const brightnessValue = document.getElementById('brightnessValue');
+const contrastRange = document.getElementById('contrastRange');
+const contrastValue = document.getElementById('contrastValue');
+const exposureRange = document.getElementById('exposureRange');
+const exposureValue = document.getElementById('exposureValue');
+const cameraSupportNote = document.getElementById('cameraSupportNote');
+const focusMarker = document.getElementById('focusMarker');    
 const zoomRange = document.getElementById('zoomRange');
 const zoomValue = document.getElementById('zoomValue');
 const aspectSelect = document.getElementById('aspectSelect');
@@ -608,6 +764,10 @@ const cameraSupportNote = document.getElementById('cameraSupportNote');
 let cameraStream = null;
 let cameraTrack = null;
 let cameraCapabilities = {};
+let lastCameraShotIndex = -1;
+
+let previewBrightness = 100;
+let previewContrast = 100;
 let currentZoom = 1;
 let hardwareZoomSupported = false;
 
@@ -922,6 +1082,115 @@ zoomRange.oninput = () => applyZoom(zoomRange.value);
 focusModeSelect.onchange = () => applyFocusMode(focusModeSelect.value);
 focusRange.oninput = () => applyFocusDistance(focusRange.value);
 btnRefocus.onclick = refocus;
+
+    function updatePreviewFilter() {
+  previewBrightness = Number(brightnessRange.value);
+  previewContrast = Number(contrastRange.value);
+
+  brightnessValue.textContent = `${previewBrightness}%`;
+  contrastValue.textContent = `${previewContrast}%`;
+
+  holder.style.setProperty('--preview-brightness', `${previewBrightness}%`);
+  holder.style.setProperty('--preview-contrast', `${previewContrast}%`);
+}
+
+brightnessRange.oninput = updatePreviewFilter;
+contrastRange.oninput = updatePreviewFilter;
+
+updatePreviewFilter(); 
+
+function setupExposureControl() {
+  if (!cameraTrack || !cameraTrack.getCapabilities) {
+    exposureRange.disabled = true;
+    exposureValue.textContent = '非対応';
+    return;
+  }
+
+  cameraCapabilities = cameraTrack.getCapabilities();
+
+  if (cameraCapabilities.exposureCompensation) {
+    const cap = cameraCapabilities.exposureCompensation;
+
+    exposureRange.min = cap.min;
+    exposureRange.max = cap.max;
+    exposureRange.step = cap.step || 0.1;
+    exposureRange.value = 0;
+
+    exposureRange.disabled = false;
+    exposureValue.textContent = '0';
+
+    cameraSupportNote.textContent = '露出補正: 対応 / タップフォーカス: 疑似UI + 再フォーカス試行';
+  } else {
+    exposureRange.disabled = true;
+    exposureValue.textContent = '非対応';
+
+    cameraSupportNote.textContent = '露出補正: 非対応。この場合は明るさ調整で代用してください。';
+  }
+}
+
+async function applyExposureCompensation(value) {
+  if (!cameraTrack || !cameraCapabilities.exposureCompensation) return;
+
+  const exposure = Number(value);
+  exposureValue.textContent = exposure.toFixed(2);
+
+  try {
+    await cameraTrack.applyConstraints({
+      advanced: [{ exposureCompensation: exposure }]
+    });
+  } catch (err) {
+    console.warn('exposure compensation failed', err);
+    exposureValue.textContent = '失敗';
+  }
+}
+
+exposureRange.oninput = () => {
+  applyExposureCompensation(exposureRange.value);
+};
+
+   async function refocusAtPoint(x, y) {
+  if (!cameraTrack || !cameraCapabilities) return;
+
+  try {
+    if (
+      cameraCapabilities.focusMode &&
+      cameraCapabilities.focusMode.includes('single-shot')
+    ) {
+      await cameraTrack.applyConstraints({
+        advanced: [{ focusMode: 'single-shot' }]
+      });
+    } else if (
+      cameraCapabilities.focusMode &&
+      cameraCapabilities.focusMode.includes('continuous')
+    ) {
+      await cameraTrack.applyConstraints({
+        advanced: [{ focusMode: 'continuous' }]
+      });
+    }
+  } catch (err) {
+    console.warn('tap refocus failed', err);
+  }
+}
+
+function showFocusMarker(x, y) {
+  focusMarker.style.left = `${x}px`;
+  focusMarker.style.top = `${y}px`;
+
+  focusMarker.classList.remove('show');
+  void focusMarker.offsetWidth;
+  focusMarker.classList.add('show');
+}
+
+holder.addEventListener('click', async (event) => {
+  if (!cameraStream) return;
+
+  const rect = holder.getBoundingClientRect();
+  const x = event.clientX - rect.left;
+  const y = event.clientY - rect.top;
+
+  showFocusMarker(x, y);
+  await refocusAtPoint(x, y);
+});
     
 async function startCamera() {
   try {
@@ -945,10 +1214,17 @@ cameraStream = await navigator.mediaDevices.getUserMedia({
 cameraVideo.srcObject = cameraStream;
 holder.classList.add('camera-on');
 
-setupCameraControls();
+cameraTrack = cameraStream.getVideoTracks()[0] || null;
+cameraCapabilities = cameraTrack && cameraTrack.getCapabilities
+  ? cameraTrack.getCapabilities()
+  : {};
+
+setupExposureControl();
+updatePreviewFilter();
 
 btnCamera.textContent = '■ カメラ停止';
 btnShot.disabled = false;
+btnRetake.disabled = true;
   } catch (err) {
     console.error(err);
     alert('カメラを起動できませんでした。ブラウザのカメラ許可を確認してください。');
@@ -962,13 +1238,16 @@ function stopCamera() {
   }
 
   cameraTrack = null;
-  cameraCapabilities = {}; 
-    
+  cameraCapabilities = {};
+
   cameraVideo.srcObject = null;
   holder.classList.remove('camera-on');
 
   btnCamera.textContent = '📷 カメラ起動';
   btnShot.disabled = true;
+
+  exposureRange.disabled = true;
+  exposureValue.textContent = '非対応';
 }
 
 function drawVideoCover(ctx, video, w, h) {
@@ -1003,7 +1282,27 @@ function drawVideoCover(ctx, video, w, h) {
   ctx.drawImage(video, sx, sy, sw, sh, 0, 0, w, h);
 }
 
-function captureFromCamera() {
+function captureFromCamera()
+function retakePhoto() {
+  if (lastCameraShotIndex >= 0 && imgs[lastCameraShotIndex]) {
+    imgs.splice(lastCameraShotIndex, 1);
+
+    if (imgs.length === 0) {
+      current = -1;
+    } else {
+      current = Math.max(0, Math.min(lastCameraShotIndex - 1, imgs.length - 1));
+    }
+
+    lastCameraShotIndex = -1;
+    btnSave.disabled = imgs.length === 0;
+    btnRetake.disabled = true;
+
+    render();
+  }
+
+  startCamera();
+}
+{
   if (!cameraStream || !cameraVideo.videoWidth) return;
 
 const output = getOutputSizeByAspect();
@@ -1014,18 +1313,21 @@ captureCanvas.width = w;
 captureCanvas.height = h;
 
   const ctx = captureCanvas.getContext('2d');
-  drawVideoCover(ctx, cameraVideo, w, h);
+ctx.filter = `brightness(${previewBrightness}%) contrast(${previewContrast}%)`;
+drawVideoCover(ctx, cameraVideo, w, h);
+ctx.filter = 'none';
 
   const src = captureCanvas.toDataURL('image/jpeg', 0.95);
 
-  imgs.push({ src });
+ imgs.push({ src });
 current = imgs.length - 1;
+lastCameraShotIndex = current;
 
 btnSave.disabled = false;
+btnRetake.disabled = false;
 
 stopCamera();
 render();
-}
 
 btnCamera.onclick = () => {
   if (cameraStream) {
@@ -1036,7 +1338,10 @@ btnCamera.onclick = () => {
 };
 
 btnShot.onclick = captureFromCamera;
+btnRetake.onclick = retakePhoto;
 btnSave.onclick = saveCurrentImage;
+
+render();
 function dataURLToBlob(dataURL) {
   const parts = dataURL.split(',');
   const mime = parts[0].match(/:(.*?);/)[1];
