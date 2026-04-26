@@ -1230,35 +1230,40 @@ async function startCamera() {
       return;
     }
 
-    const { ratio } = getAspectRatioParts();
+    cameraStream = await navigator.mediaDevices.getUserMedia({
+      video: {
+        facingMode: { ideal: 'environment' },
+        width: { ideal: 3072 },
+        height: { ideal: 3072 }
+      },
+      audio: false
+    });
 
-cameraStream = await navigator.mediaDevices.getUserMedia({
-  video: {
-    facingMode: { ideal: 'environment' },
-    width: { ideal: OUTPUT_SIZE },
-    height: { ideal: OUTPUT_SIZE },
-    aspectRatio: { ideal: ratio }
-  },
-  audio: false
-});
+    cameraVideo.srcObject = cameraStream;
+    holder.classList.add('camera-on');
 
-cameraVideo.srcObject = cameraStream;
-holder.classList.add('camera-on');
+    cameraTrack = cameraStream.getVideoTracks()[0] || null;
+    cameraCapabilities = cameraTrack && cameraTrack.getCapabilities
+      ? cameraTrack.getCapabilities()
+      : {};
 
-cameraTrack = cameraStream.getVideoTracks()[0] || null;
-cameraCapabilities = cameraTrack && cameraTrack.getCapabilities
-  ? cameraTrack.getCapabilities()
-  : {};
+    if (typeof setupExposureControl === 'function') {
+      setupExposureControl();
+    }
 
-setupExposureControl();
-updatePreviewFilter();
+    if (typeof updatePreviewFilter === 'function') {
+      updatePreviewFilter();
+    }
 
-btnCamera.textContent = '■ カメラ停止';
-btnShot.disabled = false;
-btnRetake.disabled = true;
+    btnCamera.textContent = '■ カメラ停止';
+    btnShot.disabled = false;
+
+    if (typeof btnRetake !== 'undefined' && btnRetake) {
+      btnRetake.disabled = true;
+    }
   } catch (err) {
     console.error(err);
-    alert('カメラを起動できませんでした。ブラウザのカメラ許可を確認してください。');
+    alert('カメラを起動できませんでした: ' + err.message);
   }
 }
 
