@@ -527,6 +527,7 @@ const btnSave = document.getElementById('btn-save');
 const captureCanvas = document.getElementById('captureCanvas');
 
 let cameraStream = null;
+const OUTPUT_SIZE = 3072;
 btnDisk.onclick = () => setMode('disk');
 btnGift.onclick = () => setMode('gift');
 
@@ -647,11 +648,13 @@ async function startCamera() {
     }
 
     cameraStream = await navigator.mediaDevices.getUserMedia({
-      video: {
-        facingMode: { ideal: 'environment' }
-      },
-      audio: false
-    });
+  video: {
+    facingMode: { ideal: 'environment' },
+    width: { ideal: OUTPUT_SIZE },
+    height: { ideal: OUTPUT_SIZE }
+  },
+  audio: false
+});
 
     cameraVideo.srcObject = cameraStream;
     holder.classList.add('camera-on');
@@ -703,8 +706,8 @@ function drawVideoCover(ctx, video, w, h) {
 function captureFromCamera() {
   if (!cameraStream || !cameraVideo.videoWidth) return;
 
-  const w = holder.clientWidth;
-  const h = holder.clientHeight;
+  const w = OUTPUT_SIZE;
+  const h = OUTPUT_SIZE;
 
   captureCanvas.width = w;
   captureCanvas.height = h;
