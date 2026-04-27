@@ -336,35 +336,54 @@
     .guide-circle-outer { width: 78%; aspect-ratio: 1 / 1; }
     .guide-circle-inner { width: 42%; aspect-ratio: 1 / 1; border-style: dashed; }
 
-    .guide-level {
+    .level-cross {
       position: absolute;
-      left: 50%;
-      top: 12%;
-      width: 70%;
-      height: 3px;
-      background: rgba(255, 255, 255, .88);
-      box-shadow: 0 0 2px rgba(0, 0, 0, .7);
-      transform: translateX(-50%) rotate(var(--level-angle, 0deg));
+      inset: 0;
+      transform: rotate(var(--level-roll-angle, 0deg));
       transform-origin: center center;
-      transition: transform .08s linear, background .12s;
+      transition: transform .08s linear;
     }
 
-    .guide-level.level-ok {
-      background: rgba(120, 255, 150, .95);
-    }
-
-    .guide-level::before {
-      content: '';
+    .level-bar {
       position: absolute;
       left: 50%;
       top: 50%;
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      background: currentColor;
-      color: rgba(255, 255, 255, .95);
+      background: rgba(255, 255, 255, .9);
+      box-shadow: 0 0 2px rgba(0, 0, 0, .75);
+      border-radius: 999px;
       transform: translate(-50%, -50%);
-      box-shadow: 0 0 2px rgba(0, 0, 0, .7);
+      transition: background .12s, box-shadow .12s;
+    }
+
+    .level-horizontal {
+      width: 78%;
+      height: 3px;
+    }
+
+    .level-vertical {
+      width: 3px;
+      height: 78%;
+    }
+
+    .level-cross.level-ok .level-bar {
+      background: rgba(120, 255, 150, .98);
+      box-shadow: 0 0 6px rgba(120, 255, 150, .55), 0 0 2px rgba(0, 0, 0, .75);
+    }
+
+    .level-center-dot {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, .95);
+      transform: translate(-50%, -50%);
+      box-shadow: 0 0 2px rgba(0, 0, 0, .75);
+    }
+
+    .level-cross.level-ok .level-center-dot {
+      background: rgba(120, 255, 150, .98);
     }
 
     .focus-marker {
@@ -590,7 +609,7 @@
       .ring-1 { width: 322px; height: 322px; }
       .ring-2 { width: 342px; height: 342px; }
       .thumb { width: 56px; height: 56px; }
-      .camera-actions { grid-template-columns: 1fr 1fr 1fr 1fr; }
+      .camera-actions { grid-template-columns: 1fr 1fr 1fr; }
     }
   </style>
 
@@ -646,7 +665,11 @@
             <div class="guide-line guide-line-h"></div>
             <div class="guide-circle guide-circle-outer"></div>
             <div class="guide-circle guide-circle-inner"></div>
-            <div class="guide-level"></div>
+            <div class="level-cross" id="levelCross">
+              <div class="level-bar level-horizontal"></div>
+              <div class="level-bar level-vertical"></div>
+              <div class="level-center-dot"></div>
+            </div>
           </div>
 
           <div class="focus-marker" id="focusMarker"></div>
@@ -697,9 +720,8 @@
       </div>
 
       <div class="camera-actions">
-        <button class="camera-btn" id="btn-shot" disabled>この枠で撮影</button>
         <button class="camera-btn" id="btn-camera">📷 カメラ起動</button>
-        <button class="camera-btn" id="btn-retake" disabled>撮り直し</button>
+        <button class="camera-btn" id="btn-shot" disabled>この枠で撮影</button>
         <button class="camera-btn" id="btn-save" disabled>保存/共有</button>
       </div>
 
@@ -781,7 +803,7 @@
 
       <div class="footer">
         <span>PC: 矢印キーで切替 / スマホ: スワイプ</span>
-        <span>v1.04-auto-brightness-contrast</span>
+        <span>v1.05-continuous-level</span>
       </div>
     </div>
   </div>
@@ -833,7 +855,6 @@ const gridCenter = document.getElementById('grid-center');
 const cameraVideo = document.getElementById('cameraVideo');
 const btnCamera = document.getElementById('btn-camera');
 const btnShot = document.getElementById('btn-shot');
-const btnRetake = document.getElementById('btn-retake');
 const btnSave = document.getElementById('btn-save');
 const captureCanvas = document.getElementById('captureCanvas');
 
@@ -856,7 +877,7 @@ const exposureRange = document.getElementById('exposureRange');
 const exposureValue = document.getElementById('exposureValue');
 const cameraSupportNote = document.getElementById('cameraSupportNote');
 const focusMarker = document.getElementById('focusMarker');
-const guideLevel = document.querySelector('.guide-level');
+const levelCross = document.getElementById('levelCross');
 
 function setMode(mode) {
   body.className = 'mode-' + mode;
@@ -1113,19 +1134,6 @@ function setupCameraControls() {
     maxZoom = cameraCapabilities.zoom.max ?? 4;
     zoomStep = cameraCapabilities.zoom.step ?? 0.1;
 
-    zoomRange.min = minZoom;
-    zoomRange.max = maxZoom;
-    zoomRange.step = zoomStep;
-    zoomRange.value = minZoom;
-    currentZoom = Number(minZoom);
-    zoomRange.disabled = false;
-    zoomValue.textContent = `${currentZoom.toFixed(1)}x`;
-    holder.style.setProperty('--digital-zoom', '1');
-
-    if (btnZoomOut) btnZoomOut.disabled = false;
-    if (btnZoomIn) btnZoomIn.disabled = false;
-    if (btnZoomReset) btnZoomReset.disabled = false;
-
     notes.push('ズーム: カメラ側対応');
   } else {
     hardwareZoomSupported = false;
@@ -1134,21 +1142,25 @@ function setupCameraControls() {
     maxZoom = 4;
     zoomStep = 0.1;
 
-    zoomRange.min = minZoom;
-    zoomRange.max = maxZoom;
-    zoomRange.step = zoomStep;
-    zoomRange.value = 1;
-    currentZoom = 1;
-    zoomRange.disabled = false;
-    zoomValue.textContent = '1.0x';
-    holder.style.setProperty('--digital-zoom', '1');
-
-    if (btnZoomOut) btnZoomOut.disabled = false;
-    if (btnZoomIn) btnZoomIn.disabled = false;
-    if (btnZoomReset) btnZoomReset.disabled = false;
-
     notes.push('ズーム: デジタルズーム');
   }
+
+  const restoredZoom = Math.max(minZoom, Math.min(maxZoom, Number(currentZoom) || minZoom));
+  currentZoom = restoredZoom;
+  zoomRange.min = minZoom;
+  zoomRange.max = maxZoom;
+  zoomRange.step = zoomStep;
+  zoomRange.value = currentZoom;
+  zoomRange.disabled = false;
+  zoomValue.textContent = `${currentZoom.toFixed(1)}x`;
+  holder.style.setProperty('--digital-zoom', hardwareZoomSupported ? '1' : String(currentZoom));
+
+  if (btnZoomOut) btnZoomOut.disabled = false;
+  if (btnZoomIn) btnZoomIn.disabled = false;
+  if (btnZoomReset) btnZoomReset.disabled = false;
+
+  // カメラ再起動後も前回の倍率を復元する
+  applyZoom(currentZoom);
 
   if (cameraCapabilities.focusMode && cameraCapabilities.focusMode.length) {
     focusModeSelect.innerHTML = '';
@@ -1327,22 +1339,23 @@ function getScreenAngle() {
 function getRollFromOrientation(event) {
   const beta = typeof event.beta === 'number' ? event.beta : 0;
   const gamma = typeof event.gamma === 'number' ? event.gamma : 0;
-  const screenAngle = getScreenAngle();
+  const rawAngle = getScreenAngle();
+  const screenAngle = ((rawAngle % 360) + 360) % 360;
 
-  // 縦持ちは gamma、横持ちは beta を使うと自然に見えやすい。
-  if (Math.abs(screenAngle) === 90 || Math.abs(screenAngle) === 270) {
-    return beta;
-  }
+  // 縦向き/横向きの両方で、画面内の水平・垂直が自然に見えるように補正する。
+  if (screenAngle === 90) return beta;
+  if (screenAngle === 270) return -beta;
+  if (screenAngle === 180) return -gamma;
   return gamma;
 }
 
 function updateLevelLine(roll) {
-  if (!guideLevel || !Number.isFinite(roll)) return;
+  if (!levelCross || !Number.isFinite(roll)) return;
 
   const clamped = Math.max(-45, Math.min(45, roll));
-  // スマホの傾きと逆向きに回して、画面上の水平目安として使う。
-  holder.style.setProperty('--level-angle', `${-clamped}deg`);
-  guideLevel.classList.toggle('level-ok', Math.abs(clamped) < 1.5);
+  // 中央の十字をスマホの傾きと逆向きに回し、水平・垂直の目安として使う。
+  holder.style.setProperty('--level-roll-angle', `${-clamped}deg`);
+  levelCross.classList.toggle('level-ok', Math.abs(clamped) < 1.5);
 }
 
 function handleDeviceOrientation(event) {
@@ -1420,7 +1433,6 @@ async function startCamera() {
 
     btnCamera.textContent = '■ カメラ停止';
     btnShot.disabled = false;
-    btnRetake.disabled = true;
   } catch (error) {
     console.error(error);
     alert('カメラを起動できませんでした: ' + (error.message || error.name || error));
@@ -1448,8 +1460,8 @@ function stopCamera() {
   if (btnZoomIn) btnZoomIn.disabled = true;
   if (btnZoomReset) btnZoomReset.disabled = true;
   holder.style.setProperty('--digital-zoom', '1');
-  holder.style.setProperty('--level-angle', '0deg');
-  if (guideLevel) guideLevel.classList.remove('level-ok');
+  holder.style.setProperty('--level-roll-angle', '0deg');
+  if (levelCross) levelCross.classList.remove('level-ok');
   focusModeSelect.disabled = true;
   focusRange.disabled = true;
   btnRefocus.disabled = true;
@@ -1518,32 +1530,14 @@ function captureFromCamera() {
     lastCameraShotIndex = current;
 
     btnSave.disabled = false;
-    btnRetake.disabled = false;
-
-    stopCamera();
+    // 連続撮影できるように、撮影後もカメラは止めない。
     render();
+    holder.classList.add('camera-on');
+    btnShot.disabled = false;
   } catch (error) {
     console.error(error);
     alert('撮影に失敗しました: ' + (error.message || error));
   }
-}
-
-function retakePhoto() {
-  if (lastCameraShotIndex >= 0 && imgs[lastCameraShotIndex]) {
-    imgs.splice(lastCameraShotIndex, 1);
-
-    if (imgs.length === 0) {
-      current = 0;
-    } else {
-      current = Math.max(0, Math.min(lastCameraShotIndex - 1, imgs.length - 1));
-    }
-
-    lastCameraShotIndex = -1;
-    btnRetake.disabled = true;
-    render();
-  }
-
-  startCamera();
 }
 
 function dataURLToBlob(dataURL) {
@@ -1674,7 +1668,6 @@ btnCamera.addEventListener('click', () => {
 });
 
 btnShot.addEventListener('click', captureFromCamera);
-btnRetake.addEventListener('click', retakePhoto);
 btnSave.addEventListener('click', saveCurrentImage);
 
 applyPreviewAspect();
