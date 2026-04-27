@@ -19,6 +19,7 @@
       --preview-brightness: 100%;
       --preview-contrast: 100%;
       --digital-zoom: 1;
+      --guide-opacity: .45;
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -310,6 +311,8 @@
       z-index: 4;
       pointer-events: none;
       display: none;
+      opacity: var(--guide-opacity);
+      transition: opacity .12s;
     }
 
     .holder.camera-on .camera-guide { display: block; }
@@ -611,6 +614,55 @@
       line-height: 1;
     }
 
+    .utility-actions,
+    .image-management {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 8px;
+    }
+
+    @media (min-width: 520px) {
+      .utility-actions {
+        grid-template-columns: 1fr 1fr;
+      }
+
+      .image-management {
+        grid-template-columns: 1fr 1fr 1fr;
+      }
+    }
+
+    body.shooting-mode header,
+    body.shooting-mode .thumbs,
+    body.shooting-mode .image-management,
+    body.shooting-mode .dropzone,
+    body.shooting-mode .camera-controls,
+    body.shooting-mode .footer {
+      display: none !important;
+    }
+
+    body.shooting-mode main {
+      padding: .5rem;
+      max-width: none;
+      align-items: stretch;
+    }
+
+    body.shooting-mode .card {
+      max-width: none;
+      min-height: 100vh;
+      border-radius: 0;
+    }
+
+    body.shooting-mode .stage {
+      flex: 1;
+      justify-content: center;
+    }
+
+    .setting-note {
+      opacity: .72;
+      font-size: 11px;
+      line-height: 1.45;
+    }
+
     .camera-note {
       margin: 0;
       opacity: .75;
@@ -738,6 +790,11 @@
     <div class="controls">
       <div class="thumbs" id="thumbs"></div>
 
+      <div class="image-management">
+        <button class="camera-btn" id="btn-delete-current" type="button" disabled>選択画像を削除</button>
+        <button class="camera-btn" id="btn-clear-all" type="button" disabled>全削除</button>
+        <button class="camera-btn" id="btn-save-all" type="button" disabled>全保存</button>
+      </div>
 
       <div class="camera-zoom-panel">
         <label class="zoom-label">
@@ -757,6 +814,11 @@
         <button class="camera-btn" id="btn-camera">📷 カメラ起動</button>
         <button class="camera-btn" id="btn-shot" disabled>この枠で撮影</button>
         <button class="camera-btn" id="btn-save" disabled>保存/共有</button>
+      </div>
+
+      <div class="utility-actions">
+        <button class="camera-btn" id="btn-shooting-mode" type="button">撮影モード</button>
+        <button class="camera-btn" id="btn-reset-settings" type="button">設定リセット</button>
       </div>
 
       <div class="dropzone" id="dropzone">
@@ -799,6 +861,36 @@
 
 
         <label>
+          ホワイトバランス
+          <div class="adjustment-row">
+            <select id="whiteBalanceMode" class="adjustment-mode">
+              <option value="auto" selected>自動</option>
+              <option value="manual">手動</option>
+            </select>
+            <span id="whiteBalanceValue">自動</span>
+          </div>
+          <span class="setting-note">黄みが強い時は手動で「青め」に寄せてください。</span>
+        </label>
+
+        <label>
+          色温度補正
+          <input type="range" id="temperatureRange" min="-50" max="50" step="1" value="-8" disabled>
+          <span id="temperatureValue">青め -8</span>
+        </label>
+
+        <label>
+          色かぶり補正
+          <input type="range" id="tintRange" min="-50" max="50" step="1" value="0" disabled>
+          <span id="tintValue">0</span>
+        </label>
+
+        <label>
+          ガイド濃度
+          <input type="range" id="guideOpacityRange" min="0" max="100" step="1" value="45">
+          <span id="guideOpacityValue">45%</span>
+        </label>
+
+        <label>
           アスペクト比
           <select id="aspectSelect">
             <option value="1:1">1:1 正方形</option>
@@ -837,7 +929,7 @@
 
       <div class="footer">
         <span>PC: 矢印キーで切替 / スマホ: スワイプ</span>
-        <span>v1.08-soft-level-lines</span>
+        <span>v1.09-full-features</span>
       </div>
     </div>
   </div>
@@ -855,6 +947,9 @@ let lastCameraShotIndex = -1;
 
 let previewBrightness = 100;
 let previewContrast = 100;
+let previewTemperature = -8;
+let previewTint = 0;
+let guideOpacity = 45;
 let currentZoom = 1;
 let hardwareZoomSupported = false;
 let minZoom = 1;
@@ -871,6 +966,7 @@ const autoAdjustCanvas = document.createElement('canvas');
 const autoAdjustCtx = autoAdjustCanvas.getContext('2d', { willReadFrequently: true });
 
 const OUTPUT_SIZE = 3072;
+const SETTINGS_KEY = 'pokestopCameraSettings.v2';
 
 const body = document.body;
 const holder = document.getElementById('holder');
@@ -894,6 +990,11 @@ const cameraVideo = document.getElementById('cameraVideo');
 const btnCamera = document.getElementById('btn-camera');
 const btnShot = document.getElementById('btn-shot');
 const btnSave = document.getElementById('btn-save');
+const btnShootingMode = document.getElementById('btn-shooting-mode');
+const btnResetSettings = document.getElementById('btn-reset-settings');
+const btnDeleteCurrent = document.getElementById('btn-delete-current');
+const btnClearAll = document.getElementById('btn-clear-all');
+const btnSaveAll = document.getElementById('btn-save-all');
 const captureCanvas = document.getElementById('captureCanvas');
 
 const brightnessMode = document.getElementById('brightnessMode');
@@ -902,6 +1003,14 @@ const brightnessValue = document.getElementById('brightnessValue');
 const contrastMode = document.getElementById('contrastMode');
 const contrastRange = document.getElementById('contrastRange');
 const contrastValue = document.getElementById('contrastValue');
+const whiteBalanceMode = document.getElementById('whiteBalanceMode');
+const whiteBalanceValue = document.getElementById('whiteBalanceValue');
+const temperatureRange = document.getElementById('temperatureRange');
+const temperatureValue = document.getElementById('temperatureValue');
+const tintRange = document.getElementById('tintRange');
+const tintValue = document.getElementById('tintValue');
+const guideOpacityRange = document.getElementById('guideOpacityRange');
+const guideOpacityValue = document.getElementById('guideOpacityValue');
 const zoomRange = document.getElementById('zoomRange');
 const zoomValue = document.getElementById('zoomValue');
 const btnZoomOut = document.getElementById('btn-zoom-out');
@@ -938,6 +1047,9 @@ function render() {
     btnPrev.disabled = true;
     btnNext.disabled = true;
     btnSave.disabled = true;
+    if (btnDeleteCurrent) btnDeleteCurrent.disabled = true;
+    if (btnClearAll) btnClearAll.disabled = true;
+    if (btnSaveAll) btnSaveAll.disabled = true;
     return;
   }
 
@@ -975,6 +1087,9 @@ function render() {
   btnPrev.disabled = current === 0;
   btnNext.disabled = current === imgs.length - 1;
   btnSave.disabled = false;
+  if (btnDeleteCurrent) btnDeleteCurrent.disabled = imgs.length === 0;
+  if (btnClearAll) btnClearAll.disabled = imgs.length === 0;
+  if (btnSaveAll) btnSaveAll.disabled = imgs.length === 0;
 }
 
 function go(direction) {
@@ -1041,6 +1156,184 @@ function clampValue(value, min, max) {
   return Math.max(min, Math.min(max, value));
 }
 
+
+function getAppSettings() {
+  return {
+    brightnessMode: brightnessMode.value,
+    brightness: Number(brightnessRange.value),
+    contrastMode: contrastMode.value,
+    contrast: Number(contrastRange.value),
+    whiteBalanceMode: whiteBalanceMode.value,
+    temperature: Number(temperatureRange.value),
+    tint: Number(tintRange.value),
+    guideOpacity: Number(guideOpacityRange.value),
+    aspect: aspectSelect.value,
+    zoom: Number(currentZoom) || 1
+  };
+}
+
+function saveSettings() {
+  try {
+    localStorage.setItem(SETTINGS_KEY, JSON.stringify(getAppSettings()));
+  } catch (error) {
+    console.warn('settings save failed', error);
+  }
+}
+
+function loadSettings() {
+  try {
+    const raw = localStorage.getItem(SETTINGS_KEY);
+    if (!raw) return;
+
+    const settings = JSON.parse(raw);
+
+    if (settings.brightnessMode) brightnessMode.value = settings.brightnessMode;
+    if (Number.isFinite(Number(settings.brightness))) brightnessRange.value = settings.brightness;
+
+    if (settings.contrastMode) contrastMode.value = settings.contrastMode;
+    if (Number.isFinite(Number(settings.contrast))) contrastRange.value = settings.contrast;
+
+    if (settings.whiteBalanceMode) whiteBalanceMode.value = settings.whiteBalanceMode;
+    if (Number.isFinite(Number(settings.temperature))) temperatureRange.value = settings.temperature;
+    if (Number.isFinite(Number(settings.tint))) tintRange.value = settings.tint;
+
+    if (Number.isFinite(Number(settings.guideOpacity))) guideOpacityRange.value = settings.guideOpacity;
+    if (settings.aspect) aspectSelect.value = settings.aspect;
+    if (Number.isFinite(Number(settings.zoom))) currentZoom = Number(settings.zoom);
+  } catch (error) {
+    console.warn('settings load failed', error);
+  }
+}
+
+function resetSettings() {
+  try {
+    localStorage.removeItem(SETTINGS_KEY);
+  } catch (error) {
+    console.warn('settings reset failed', error);
+  }
+
+  brightnessMode.value = 'auto';
+  brightnessRange.value = 100;
+  contrastMode.value = 'auto';
+  contrastRange.value = 100;
+  whiteBalanceMode.value = 'auto';
+  temperatureRange.value = -8;
+  tintRange.value = 0;
+  guideOpacityRange.value = 45;
+  aspectSelect.value = '1:1';
+  currentZoom = minZoom || 1;
+
+  updateAdjustmentControlState();
+  updateWhiteBalanceControlState();
+  updateGuideOpacity();
+  applyPreviewAspect();
+  applyZoom(currentZoom);
+  saveSettings();
+}
+
+function isWhiteBalanceAuto() {
+  return whiteBalanceMode.value === 'auto';
+}
+
+function updateWhiteBalanceLabels() {
+  const temp = Number(temperatureRange.value);
+  const tint = Number(tintRange.value);
+
+  previewTemperature = temp;
+  previewTint = tint;
+
+  if (isWhiteBalanceAuto()) {
+    whiteBalanceValue.textContent = `自動`;
+  } else {
+    whiteBalanceValue.textContent = temp < 0 ? `青め ${temp}` : temp > 0 ? `黄め +${temp}` : '0';
+  }
+
+  temperatureValue.textContent = temp < 0 ? `青め ${temp}` : temp > 0 ? `黄め +${temp}` : '0';
+  tintValue.textContent = tint < 0 ? `緑 ${tint}` : tint > 0 ? `赤紫 +${tint}` : '0';
+}
+
+function updateWhiteBalanceControlState() {
+  const auto = isWhiteBalanceAuto();
+  temperatureRange.disabled = auto;
+  tintRange.disabled = auto;
+  updateWhiteBalanceLabels();
+  saveSettings();
+}
+
+function updateGuideOpacity() {
+  guideOpacity = Number(guideOpacityRange.value);
+  guideOpacity = clampValue(guideOpacity, 0, 100);
+  guideOpacityValue.textContent = `${Math.round(guideOpacity)}%`;
+  holder.style.setProperty('--guide-opacity', String(guideOpacity / 100));
+  saveSettings();
+}
+
+function estimateWhiteBalanceFromVideo() {
+  if (!cameraStream || !cameraVideo.videoWidth || !autoAdjustCtx) return;
+
+  const sampleSize = 48;
+  autoAdjustCanvas.width = sampleSize;
+  autoAdjustCanvas.height = sampleSize;
+
+  try {
+    autoAdjustCtx.drawImage(cameraVideo, 0, 0, sampleSize, sampleSize);
+    const data = autoAdjustCtx.getImageData(0, 0, sampleSize, sampleSize).data;
+
+    let r = 0, g = 0, b = 0, count = 0;
+    for (let i = 0; i < data.length; i += 4) {
+      const max = Math.max(data[i], data[i + 1], data[i + 2]);
+      const min = Math.min(data[i], data[i + 1], data[i + 2]);
+
+      // 極端に暗い/明るい画素と高彩度画素は推定から外す
+      if (max < 24 || max > 245 || max - min > 95) continue;
+
+      r += data[i];
+      g += data[i + 1];
+      b += data[i + 2];
+      count++;
+    }
+
+    if (count < 50) return;
+
+    r /= count;
+    g /= count;
+    b /= count;
+
+    // Rが強くBが弱い＝黄/暖色寄り → tempを青方向にする
+    const temp = clampValue(Math.round((b - r) * 0.28), -28, 28);
+    const tint = clampValue(Math.round(((r + b) / 2 - g) * 0.18), -18, 18);
+
+    temperatureRange.value = temp;
+    tintRange.value = tint;
+    updateWhiteBalanceLabels();
+  } catch (error) {
+    console.warn('white balance estimate failed', error);
+  }
+}
+
+function applyWhiteBalanceToCanvas(ctx, width, height) {
+  const temp = Number(temperatureRange.value);
+  const tint = Number(tintRange.value);
+
+  if (!temp && !tint) return;
+
+  const image = ctx.getImageData(0, 0, width, height);
+  const data = image.data;
+
+  // temp: negative = cooler/bluer, positive = warmer/yellower
+  const rMul = 1 + temp / 180 - tint / 420;
+  const gMul = 1 - Math.abs(temp) / 700 - tint / 260;
+  const bMul = 1 - temp / 180 - tint / 420;
+
+  for (let i = 0; i < data.length; i += 4) {
+    data[i] = clampValue(data[i] * rMul, 0, 255);
+    data[i + 1] = clampValue(data[i + 1] * gMul, 0, 255);
+    data[i + 2] = clampValue(data[i + 2] * bMul, 0, 255);
+  }
+
+  ctx.putImageData(image, 0, 0);
+}
+
 function setPreviewFilter(brightness, contrast) {
   previewBrightness = Math.round(clampValue(Number(brightness), 50, 150));
   previewContrast = Math.round(clampValue(Number(contrast), 50, 150));
@@ -1076,11 +1369,13 @@ function updateAdjustmentControlState() {
 
   setPreviewFilter(previewBrightness, previewContrast);
 
-  if (cameraStream && (isBrightnessAuto() || isContrastAuto())) {
+  if (cameraStream && (isBrightnessAuto() || isContrastAuto() || isWhiteBalanceAuto())) {
     startAutoAdjustment();
-  } else if (!isBrightnessAuto() && !isContrastAuto()) {
+  } else if (!isBrightnessAuto() && !isContrastAuto() && !isWhiteBalanceAuto()) {
     stopAutoAdjustment();
   }
+
+  saveSettings();
 }
 
 function updatePreviewFilter() {
@@ -1093,11 +1388,12 @@ function updatePreviewFilter() {
   }
 
   setPreviewFilter(previewBrightness, previewContrast);
+  saveSettings();
 }
 
 function runAutoAdjustment() {
   if (!cameraStream || !cameraVideo.videoWidth || !autoAdjustCtx) return;
-  if (!isBrightnessAuto() && !isContrastAuto()) return;
+  if (!isBrightnessAuto() && !isContrastAuto() && !isWhiteBalanceAuto()) return;
 
   const sampleSize = 64;
   autoAdjustCanvas.width = sampleSize;
@@ -1134,6 +1430,10 @@ function runAutoAdjustment() {
     const nextContrast = isContrastAuto()
       ? clampValue(100 + (52 - stdDev) * 0.65, 75, 135)
       : previewContrast;
+
+    if (isWhiteBalanceAuto()) {
+      estimateWhiteBalanceFromVideo();
+    }
 
     setPreviewFilter(nextBrightness, nextContrast);
   } catch (error) {
@@ -1259,6 +1559,7 @@ function setupCameraControls() {
   }
 
   notes.push(levelGuideStatus);
+  notes.push('ホワイトバランス: ' + (isWhiteBalanceAuto() ? '自動' : '手動'));
   cameraSupportNote.textContent = notes.join(' / ');
 }
 
@@ -1275,6 +1576,7 @@ async function applyZoom(value) {
   // カメラ側ズーム対応時は映像自体がズームされるので、CSS拡大は重ねない。
   // 非対応時だけプレビューと保存画像でデジタルズームする。
   holder.style.setProperty('--digital-zoom', hardwareZoomSupported ? '1' : zoom);
+  saveSettings();
 
   if (!cameraTrack || !hardwareZoomSupported) return;
 
@@ -1572,6 +1874,8 @@ async function startCamera() {
 
     holder.classList.add('camera-on');
     setupCameraControls();
+    updateWhiteBalanceControlState();
+    updateGuideOpacity();
     updateAdjustmentControlState();
 
     btnCamera.textContent = '■ カメラ停止';
@@ -1666,10 +1970,15 @@ function captureFromCamera() {
     captureCanvas.width = w;
     captureCanvas.height = h;
 
+    if (isWhiteBalanceAuto()) {
+      estimateWhiteBalanceFromVideo();
+    }
+
     const ctx = captureCanvas.getContext('2d');
     ctx.filter = `brightness(${previewBrightness}%) contrast(${previewContrast}%)`;
     drawVideoCover(ctx, cameraVideo, w, h);
     ctx.filter = 'none';
+    applyWhiteBalanceToCanvas(ctx, w, h);
 
     const src = captureCanvas.toDataURL('image/jpeg', 0.95);
 
@@ -1685,6 +1994,57 @@ function captureFromCamera() {
   } catch (error) {
     console.error(error);
     alert('撮影に失敗しました: ' + (error.message || error));
+  }
+}
+
+
+function deleteCurrentImage() {
+  if (!imgs.length) return;
+
+  imgs.splice(current, 1);
+  current = Math.max(0, Math.min(current, imgs.length - 1));
+  render();
+}
+
+function clearAllImages() {
+  if (!imgs.length) return;
+  if (!confirm('撮影/追加した画像をすべて削除しますか？')) return;
+
+  imgs = [];
+  current = 0;
+  render();
+}
+
+async function downloadBlob(blob, filename) {
+  await downloadBlob(blob, filename);
+}
+
+async function saveAllImages() {
+  if (!imgs.length) {
+    alert('保存する画像がありません。');
+    return;
+  }
+
+  for (let i = 0; i < imgs.length; i++) {
+    const blob = dataURLToBlob(imgs[i].src);
+    const filename = `pokestop-postcard-${String(i + 1).padStart(2, '0')}-${new Date().toISOString().replace(/[:.]/g, '-')}.jpg`;
+    await downloadBlob(blob, filename);
+    await new Promise(resolve => setTimeout(resolve, 180));
+  }
+}
+
+function toggleShootingMode() {
+  const entering = !document.body.classList.contains('shooting-mode');
+
+  document.body.classList.toggle('shooting-mode', entering);
+  btnShootingMode.textContent = entering ? '通常表示に戻る' : '撮影モード';
+
+  if (entering && document.documentElement.requestFullscreen) {
+    document.documentElement.requestFullscreen().catch(() => {});
+  }
+
+  if (!entering && document.fullscreenElement && document.exitFullscreen) {
+    document.exitFullscreen().catch(() => {});
   }
 }
 
@@ -1778,11 +2138,27 @@ stage.addEventListener('touchend', event => {
   if (Math.abs(diff) > 50) go(diff > 0 ? -1 : 1);
 });
 
-aspectSelect.addEventListener('change', applyPreviewAspect);
+aspectSelect.addEventListener('change', () => {
+  applyPreviewAspect();
+  saveSettings();
+});
+
 brightnessMode.addEventListener('change', updateAdjustmentControlState);
 contrastMode.addEventListener('change', updateAdjustmentControlState);
 brightnessRange.addEventListener('input', updatePreviewFilter);
 contrastRange.addEventListener('input', updatePreviewFilter);
+
+whiteBalanceMode.addEventListener('change', updateWhiteBalanceControlState);
+temperatureRange.addEventListener('input', () => {
+  updateWhiteBalanceLabels();
+  saveSettings();
+});
+tintRange.addEventListener('input', () => {
+  updateWhiteBalanceLabels();
+  saveSettings();
+});
+guideOpacityRange.addEventListener('input', updateGuideOpacity);
+
 zoomRange.addEventListener('input', () => applyZoom(zoomRange.value));
 if (btnZoomOut) {
   btnZoomOut.addEventListener('click', () => applyZoom(currentZoom - zoomStep));
@@ -1817,8 +2193,23 @@ btnCamera.addEventListener('click', () => {
 
 btnShot.addEventListener('click', captureFromCamera);
 btnSave.addEventListener('click', saveCurrentImage);
+btnDeleteCurrent.addEventListener('click', deleteCurrentImage);
+btnClearAll.addEventListener('click', clearAllImages);
+btnSaveAll.addEventListener('click', saveAllImages);
+btnShootingMode.addEventListener('click', toggleShootingMode);
+btnResetSettings.addEventListener('click', resetSettings);
 
+document.addEventListener('fullscreenchange', () => {
+  if (!document.fullscreenElement && document.body.classList.contains('shooting-mode')) {
+    document.body.classList.remove('shooting-mode');
+    btnShootingMode.textContent = '撮影モード';
+  }
+});
+
+loadSettings();
 applyPreviewAspect();
+updateWhiteBalanceControlState();
+updateGuideOpacity();
 updateAdjustmentControlState();
 render();
 </script>
