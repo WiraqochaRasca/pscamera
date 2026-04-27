@@ -589,6 +589,20 @@
       min-height: 34px;
     }
 
+    .ai-scene-status {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 34px;
+      padding: 0 8px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: rgba(255,255,255,0.04);
+      color: var(--text);
+      font-size: 12px;
+      white-space: nowrap;
+    }
+
 
 
     .camera-zoom-panel {
@@ -881,6 +895,18 @@
         </label>
 
         <label>
+          AIシーン強化
+          <div class="preset-row">
+            <select id="aiSceneMode">
+              <option value="on" selected>ON：自動判定して補正</option>
+              <option value="off">OFF</option>
+            </select>
+            <span class="ai-scene-status" id="aiSceneStatus">待機中</span>
+          </div>
+          <span class="setting-note">暗い/逆光/黄み/白飛びなどを判定して、明るさ・コントラスト・色味を自動で微調整します。</span>
+        </label>
+
+        <label>
           明るさ
           <div class="adjustment-row">
             <select id="brightnessMode" class="adjustment-mode">
@@ -974,7 +1000,7 @@
 
       <div class="footer">
         <span>PC: 矢印キーで切替 / スマホ: スワイプ</span>
-        <span>v1.10-autosave-presets</span>
+        <span>v1.11-ai-scene</span>
       </div>
     </div>
   </div>
@@ -1113,6 +1139,8 @@ const captureCanvas = document.getElementById('captureCanvas');
 const autoSaveMode = document.getElementById('autoSaveMode');
 const presetSelect = document.getElementById('presetSelect');
 const btnApplyPreset = document.getElementById('btn-apply-preset');
+const aiSceneMode = document.getElementById('aiSceneMode');
+const aiSceneStatus = document.getElementById('aiSceneStatus');
 
 const brightnessMode = document.getElementById('brightnessMode');
 const brightnessRange = document.getElementById('brightnessRange');
@@ -1286,7 +1314,8 @@ function getAppSettings() {
     guideOpacity: Number(guideOpacityRange.value),
     aspect: aspectSelect.value,
     zoom: Number(currentZoom) || 1,
-    autoSaveMode: autoSaveMode ? autoSaveMode.value : 'off'
+    autoSaveMode: autoSaveMode ? autoSaveMode.value : 'off',
+    aiSceneMode: aiSceneMode ? aiSceneMode.value : 'on'
   };
 }
 
@@ -1319,6 +1348,7 @@ function loadSettings() {
     if (settings.aspect) aspectSelect.value = settings.aspect;
     if (Number.isFinite(Number(settings.zoom))) currentZoom = Number(settings.zoom);
     if (autoSaveMode && settings.autoSaveMode) autoSaveMode.value = settings.autoSaveMode;
+    if (aiSceneMode && settings.aiSceneMode) aiSceneMode.value = settings.aiSceneMode;
   } catch (error) {
     console.warn('settings load failed', error);
   }
@@ -1342,6 +1372,8 @@ function resetSettings() {
   aspectSelect.value = '1:1';
   currentZoom = minZoom || 1;
   if (autoSaveMode) autoSaveMode.value = 'off';
+  if (aiSceneMode) aiSceneMode.value = 'on';
+  setAiSceneStatus('待機中');
 
   updateAdjustmentControlState();
   updateWhiteBalanceControlState();
@@ -1371,6 +1403,20 @@ function applyPreset(presetName) {
   updateWhiteBalanceControlState();
   updateGuideOpacity();
   saveSettings();
+}
+
+function isAiSceneOn() {
+  return aiSceneMode && aiSceneMode.value === 'on';
+}
+
+function setAiSceneStatus(message) {
+  if (aiSceneStatus) {
+    aiSceneStatus.textContent = message || '待機中';
+  }
+}
+
+function shouldRunAutoAdjustment() {
+  return isBrightnessAuto() || isContrastAuto() || isWhiteBalanceAuto() || isAiSceneOn();
 }
 
 function isWhiteBalanceAuto() {
@@ -1511,9 +1557,9 @@ function updateAdjustmentControlState() {
 
   setPreviewFilter(previewBrightness, previewContrast);
 
-  if (cameraStream && (isBrightnessAuto() || isContrastAuto() || isWhiteBalanceAuto())) {
+  if (cameraStream && shouldRunAutoAdjustment()) {
     startAutoAdjustment();
-  } else if (!isBrightnessAuto() && !isContrastAuto() && !isWhiteBalanceAuto()) {
+  } else if (!shouldRunAutoAdjustment()) {
     stopAutoAdjustment();
   }
 
@@ -1533,53 +1579,187 @@ function updatePreviewFilter() {
   saveSettings();
 }
 
-function runAutoAdjustment() {
-  if (!cameraStream || !cameraVideo.videoWidth || !autoAdjustCtx) return;
-  if (!isBrightnessAuto() && !isContrastAuto() && !isWhiteBalanceAuto()) return;
+function analyzeCurrentFrame(sampleSize = 64) {
+  if (!cameraStream || !cameraVideo.videoWidth || !autoAdjustCtx) return null;
 
-  const sampleSize = 64;
   autoAdjustCanvas.width = sampleSize;
   autoAdjustCanvas.height = sampleSize;
+  autoAdjustCtx.drawImage(cameraVideo, 0, 0, sampleSize, sampleSize);
+
+  const pixels = autoAdjustCtx.getImageData(0, 0, sampleSize, sampleSize).data;
+
+  let sum = 0;
+  let sumSq = 0;
+  let count = 0;
+  let dark = 0;
+  let bright = 0;
+  let saturationSum = 0;
+
+  let colorR = 0;
+  let colorG = 0;
+  let colorB = 0;
+  let colorCount = 0;
+
+  for (let i = 0; i < pixels.length; i += 4) {
+    const r = pixels[i];
+    const g = pixels[i + 1];
+    const b = pixels[i + 2];
+
+    const max = Math.max(r, g, b);
+    const min = Math.min(r, g, b);
+    const luminance = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+
+    sum += luminance;
+    sumSq += luminance * luminance;
+    count += 1;
+
+    if (luminance < 45) dark += 1;
+    if (luminance > 220) bright += 1;
+    saturationSum += max - min;
+
+    // ホワイトバランス推定用。極端な黒/白と強い色の画素は除外。
+    if (max >= 24 && max <= 245 && max - min <= 105) {
+      colorR += r;
+      colorG += g;
+      colorB += b;
+      colorCount += 1;
+    }
+  }
+
+  if (!count) return null;
+
+  const mean = sum / count;
+  const variance = Math.max(0, sumSq / count - mean * mean);
+  const stdDev = Math.sqrt(variance);
+
+  const rMean = colorCount ? colorR / colorCount : 128;
+  const gMean = colorCount ? colorG / colorCount : 128;
+  const bMean = colorCount ? colorB / colorCount : 128;
+
+  return {
+    mean,
+    stdDev,
+    darkRatio: dark / count,
+    brightRatio: bright / count,
+    saturation: saturationSum / count,
+    rMean,
+    gMean,
+    bMean,
+    yellowBias: (rMean + gMean) / 2 - bMean,
+    redBias: rMean - (gMean + bMean) / 2,
+    greenBias: gMean - (rMean + bMean) / 2
+  };
+}
+
+function detectAiScene(metrics) {
+  const labels = [];
+  let brightness = 0;
+  let contrast = 0;
+  let temperature = 0;
+  let tint = 0;
+
+  if (metrics.brightRatio > 0.16 && metrics.darkRatio > 0.22) {
+    labels.push('逆光');
+    brightness += 12;
+    contrast -= 5;
+  } else if (metrics.mean < 55) {
+    labels.push('夜/暗め');
+    brightness += 18;
+    contrast += 8;
+    temperature -= 3;
+  } else if (metrics.mean < 90) {
+    labels.push('暗め');
+    brightness += 10;
+    contrast += 4;
+  } else if (metrics.mean > 190 || metrics.brightRatio > 0.22) {
+    labels.push('白飛び気味');
+    brightness -= 12;
+    contrast -= 3;
+  }
+
+  if (metrics.yellowBias > 12 || metrics.rMean - metrics.bMean > 18) {
+    labels.push('黄み強め');
+    temperature -= 12;
+  }
+
+  if (metrics.redBias > 16) {
+    labels.push('赤み強め');
+    temperature -= 5;
+    tint -= 5;
+  }
+
+  if (metrics.greenBias > 14) {
+    labels.push('緑かぶり');
+    tint += 8;
+  }
+
+  if (metrics.stdDev < 28) {
+    labels.push('コントラスト低め');
+    contrast += 9;
+  }
+
+  if (!labels.length) {
+    labels.push('標準');
+  }
+
+  return {
+    label: labels.slice(0, 3).join('・'),
+    brightness,
+    contrast,
+    temperature,
+    tint
+  };
+}
+
+function applyWhiteBalanceFromMetrics(metrics, aiCorrection) {
+  if (!isWhiteBalanceAuto() || !metrics) return;
+
+  const baseTemp = Math.round((metrics.bMean - metrics.rMean) * 0.28);
+  const baseTint = Math.round(((metrics.rMean + metrics.bMean) / 2 - metrics.gMean) * 0.18);
+
+  const aiTemp = aiCorrection ? aiCorrection.temperature : 0;
+  const aiTint = aiCorrection ? aiCorrection.tint : 0;
+
+  temperatureRange.value = clampValue(baseTemp + aiTemp, -45, 45);
+  tintRange.value = clampValue(baseTint + aiTint, -35, 35);
+  updateWhiteBalanceLabels();
+}
+
+function runAutoAdjustment() {
+  if (!cameraStream || !cameraVideo.videoWidth || !autoAdjustCtx) return;
+  if (!shouldRunAutoAdjustment()) return;
 
   try {
-    autoAdjustCtx.drawImage(cameraVideo, 0, 0, sampleSize, sampleSize);
-    const pixels = autoAdjustCtx.getImageData(0, 0, sampleSize, sampleSize).data;
+    const metrics = analyzeCurrentFrame(64);
+    if (!metrics) return;
 
-    let sum = 0;
-    let sumSq = 0;
-    let count = 0;
+    const aiCorrection = isAiSceneOn()
+      ? detectAiScene(metrics)
+      : { label: 'OFF', brightness: 0, contrast: 0, temperature: 0, tint: 0 };
 
-    for (let i = 0; i < pixels.length; i += 16) {
-      const r = pixels[i];
-      const g = pixels[i + 1];
-      const b = pixels[i + 2];
-      const luminance = 0.2126 * r + 0.7152 * g + 0.0722 * b;
-      sum += luminance;
-      sumSq += luminance * luminance;
-      count += 1;
-    }
-
-    if (!count) return;
-
-    const mean = sum / count;
-    const variance = Math.max(0, sumSq / count - mean * mean);
-    const stdDev = Math.sqrt(variance);
-
-    const nextBrightness = isBrightnessAuto()
-      ? clampValue(100 + (128 - mean) * 0.45, 65, 140)
+    const baseBrightness = isBrightnessAuto()
+      ? clampValue(100 + (128 - metrics.mean) * 0.45, 65, 140)
       : previewBrightness;
 
-    const nextContrast = isContrastAuto()
-      ? clampValue(100 + (52 - stdDev) * 0.65, 75, 135)
+    const baseContrast = isContrastAuto()
+      ? clampValue(100 + (52 - metrics.stdDev) * 0.65, 75, 135)
       : previewContrast;
 
-    if (isWhiteBalanceAuto()) {
-      estimateWhiteBalanceFromVideo();
+    const nextBrightness = clampValue(baseBrightness + aiCorrection.brightness, 60, 145);
+    const nextContrast = clampValue(baseContrast + aiCorrection.contrast, 70, 140);
+
+    applyWhiteBalanceFromMetrics(metrics, isAiSceneOn() ? aiCorrection : null);
+
+    if (isAiSceneOn()) {
+      setAiSceneStatus(`判定: ${aiCorrection.label}`);
+    } else {
+      setAiSceneStatus('OFF');
     }
 
     setPreviewFilter(nextBrightness, nextContrast);
   } catch (error) {
-    console.warn('auto brightness/contrast failed', error);
+    console.warn('AI scene / auto adjustment failed', error);
+    setAiSceneStatus('判定失敗');
   }
 }
 
@@ -2019,6 +2199,11 @@ async function startCamera() {
     updateWhiteBalanceControlState();
     updateGuideOpacity();
     updateAdjustmentControlState();
+    if (isAiSceneOn()) {
+      setAiSceneStatus('判定中...');
+    } else {
+      setAiSceneStatus('OFF');
+    }
 
     btnCamera.textContent = '■ カメラ停止';
     btnShot.disabled = false;
@@ -2061,6 +2246,7 @@ function stopCamera() {
   btnRefocus.disabled = true;
   exposureRange.disabled = true;
   exposureValue.textContent = '非対応';
+  setAiSceneStatus(isAiSceneOn() ? '待機中' : 'OFF');
 }
 
 function drawVideoCover(ctx, video, w, h) {
@@ -2112,7 +2298,9 @@ function captureFromCamera() {
     captureCanvas.width = w;
     captureCanvas.height = h;
 
-    if (isWhiteBalanceAuto()) {
+    if (isAiSceneOn()) {
+      runAutoAdjustment();
+    } else if (isWhiteBalanceAuto()) {
       estimateWhiteBalanceFromVideo();
     }
 
@@ -2327,6 +2515,19 @@ guideOpacityRange.addEventListener('input', updateGuideOpacity);
 
 if (autoSaveMode) {
   autoSaveMode.addEventListener('change', saveSettings);
+}
+
+if (aiSceneMode) {
+  aiSceneMode.addEventListener('change', () => {
+    saveSettings();
+    if (isAiSceneOn()) {
+      setAiSceneStatus('待機中');
+      if (cameraStream) startAutoAdjustment();
+    } else {
+      setAiSceneStatus('OFF');
+      if (cameraStream && !shouldRunAutoAdjustment()) stopAutoAdjustment();
+    }
+  });
 }
 
 if (btnApplyPreset) {
