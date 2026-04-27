@@ -383,8 +383,40 @@
       box-shadow: 0 0 2px rgba(0, 0, 0, .75);
     }
 
+    .level-cross.roll-ok .level-horizontal,
+    .level-cross.pitch-ok .level-vertical {
+      background: rgba(120, 255, 150, .98);
+      box-shadow: 0 0 6px rgba(120, 255, 150, .55), 0 0 2px rgba(0, 0, 0, .75);
+    }
+
+    .level-cross.level-ok .level-bar {
+      background: rgba(120, 255, 150, .98);
+      box-shadow: 0 0 6px rgba(120, 255, 150, .55), 0 0 2px rgba(0, 0, 0, .75);
+    }
+
     .level-cross.level-ok .level-center-dot {
       background: rgba(120, 255, 150, .98);
+    }
+
+    .level-pitch-bubble {
+      position: absolute;
+      left: 50%;
+      top: calc(50% + var(--level-pitch-offset, 0px));
+      width: 18px;
+      height: 18px;
+      border: 2px solid rgba(255, 255, 255, .95);
+      border-radius: 50%;
+      background: rgba(0, 0, 0, .18);
+      transform: translate(-50%, -50%);
+      box-shadow: 0 0 4px rgba(0, 0, 0, .75);
+      transition: top .04s linear, background .12s, border-color .12s, box-shadow .12s;
+    }
+
+    .level-cross.pitch-ok .level-pitch-bubble,
+    .level-cross.level-ok .level-pitch-bubble {
+      border-color: rgba(120, 255, 150, .98);
+      background: rgba(120, 255, 150, .85);
+      box-shadow: 0 0 8px rgba(120, 255, 150, .65), 0 0 2px rgba(0, 0, 0, .75);
     }
 
     .focus-marker {
@@ -669,6 +701,7 @@
             <div class="level-cross" id="levelCross">
               <div class="level-bar level-horizontal"></div>
               <div class="level-bar level-vertical"></div>
+              <div class="level-pitch-bubble" id="levelPitchBubble"></div>
               <div class="level-center-dot"></div>
             </div>
           </div>
@@ -804,7 +837,7 @@
 
       <div class="footer">
         <span>PC: 矢印キーで切替 / スマホ: スワイプ</span>
-        <span>v1.06-level-fix</span>
+        <span>v1.07-pitch-level</span>
       </div>
     </div>
   </div>
@@ -883,6 +916,7 @@ const exposureValue = document.getElementById('exposureValue');
 const cameraSupportNote = document.getElementById('cameraSupportNote');
 const focusMarker = document.getElementById('focusMarker');
 const levelCross = document.getElementById('levelCross');
+const levelPitchBubble = document.getElementById('levelPitchBubble');
 
 function setMode(mode) {
   body.className = 'mode-' + mode;
@@ -1352,65 +1386,103 @@ function getScreenAngle() {
   return typeof window.orientation === 'number' ? window.orientation : 0;
 }
 
-function getRollFromMotion(event) {
+function clamp(value, min, max) {
+  return Math.max(min, Math.min(max, value));
+}
+
+function getLevelFromMotion(event) {
   const acc = event.accelerationIncludingGravity;
   if (!acc) return null;
 
   const x = Number(acc.x);
   const y = Number(acc.y);
+  const z = Number(acc.z);
 
-  if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
+  if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(z)) return null;
 
-  // 画面内の重力方向だけを見る。縦持ち・横持ち・逆向きのどれでも、
-  // 最も近い 0/90/180/270 度の軸からのズレだけを水準器の傾きにする。
   const planeStrength = Math.hypot(x, y);
-  if (planeStrength < 2.5) return null;
+  const gravityStrength = Math.hypot(x, y, z);
+  if (gravityStrength < 4) return null;
 
-  const rawAngle = Math.atan2(x, y) * 180 / Math.PI;
-  return nearestRightAngleDelta(rawAngle);
+  // roll: 画面内の左右回転。縦持ち/横持ち/逆向きでも、最も近い90度軸からのズレだけを見る。
+  let roll = 0;
+  if (planeStrength >= 1.2) {
+    const rawRoll = Math.atan2(x, y) * 180 / Math.PI;
+    roll = nearestRightAngleDelta(rawRoll);
+  }
+
+  // pitch: スマホを手前/奥へ倒した量。
+  // カメラを正面に向けた垂直状態では z がほぼ0、倒すほど z が大きくなる。
+  const pitch = Math.atan2(z, planeStrength) * 180 / Math.PI;
+
+  return { roll, pitch };
 }
 
-function getRollFromOrientation(event) {
+function getLevelFromOrientation(event) {
   const beta = typeof event.beta === 'number' ? event.beta : null;
   const gamma = typeof event.gamma === 'number' ? event.gamma : null;
   const rawAngle = getScreenAngle();
   const screenAngle = ((rawAngle % 360) + 360) % 360;
 
+  let roll = 0;
+  let pitch = 0;
+
   // fallback 用。DeviceMotion が取れないブラウザ向け。
-  // 横向きでは beta が ±90 付近になるため、±90 を基準に差分だけ使う。
-  if (screenAngle === 90 && beta !== null) return normalizeDeg(beta - 90);
-  if (screenAngle === 270 && beta !== null) return normalizeDeg(beta + 90);
-  if (screenAngle === 180 && gamma !== null) return normalizeDeg(-gamma);
-  if (gamma !== null) return normalizeDeg(gamma);
-  return 0;
+  // 縦向きでは gamma が左右回転、beta の90度基準差が手前/奥。
+  // 横向きでは beta が左右回転、gamma の90度基準差が手前/奥に近い。
+  if (screenAngle === 90) {
+    if (beta !== null) roll = normalizeDeg(beta - 90);
+    if (gamma !== null) pitch = nearestRightAngleDelta(gamma);
+  } else if (screenAngle === 270) {
+    if (beta !== null) roll = normalizeDeg(beta + 90);
+    if (gamma !== null) pitch = nearestRightAngleDelta(gamma);
+  } else if (screenAngle === 180) {
+    if (gamma !== null) roll = normalizeDeg(-gamma);
+    if (beta !== null) pitch = nearestRightAngleDelta(beta);
+  } else {
+    if (gamma !== null) roll = normalizeDeg(gamma);
+    if (beta !== null) pitch = nearestRightAngleDelta(beta);
+  }
+
+  return { roll, pitch };
 }
 
-function updateLevelLine(roll) {
-  if (!levelCross || !Number.isFinite(roll)) return;
+function updateLevelGuide(level) {
+  if (!levelCross || !level || !Number.isFinite(level.roll) || !Number.isFinite(level.pitch)) return;
 
-  const normalized = normalizeDeg(roll);
-  const displayRoll = Math.max(-60, Math.min(60, normalized));
-  lastLevelRoll = displayRoll;
+  const roll = normalizeDeg(level.roll);
+  const pitch = clamp(level.pitch, -60, 60);
 
-  // 中央の十字をスマホの傾きと逆向きに回し、水平・垂直の目安として使う。
-  holder.style.setProperty('--level-roll-angle', `${-displayRoll}deg`);
+  lastLevelRoll = roll;
 
-  // 縦向き・横向きのどちらでも、画面内の水平/垂直軸に近ければ緑。
-  levelCross.classList.toggle('level-ok', Math.abs(normalized) < 2.0);
+  // 十字全体は左右回転に反応させる。
+  holder.style.setProperty('--level-roll-angle', `${-clamp(roll, -75, 75)}deg`);
+
+  // 垂直確認は手前/奥方向の傾きを、中央の丸が上下に動くことで表示する。
+  // 正面を向いて垂直に近いほど中央へ戻る。
+  const pitchOffset = clamp(pitch * 1.45, -70, 70);
+  holder.style.setProperty('--level-pitch-offset', `${pitchOffset}px`);
+
+  const rollOK = Math.abs(roll) < 2.0;
+  const pitchOK = Math.abs(pitch) < 3.0;
+
+  levelCross.classList.toggle('roll-ok', rollOK);
+  levelCross.classList.toggle('pitch-ok', pitchOK);
+  levelCross.classList.toggle('level-ok', rollOK && pitchOK);
 }
 
 function handleDeviceMotion(event) {
-  const roll = getRollFromMotion(event);
-  if (roll === null) return;
+  const level = getLevelFromMotion(event);
+  if (level === null) return;
 
   lastMotionLevelAt = Date.now();
-  updateLevelLine(roll);
+  updateLevelGuide(level);
 }
 
 function handleDeviceOrientation(event) {
-  // DeviceMotion の方が縦横どちらにも強いので、取れている間は fallback を使わない。
+  // DeviceMotion の方が手前/奥の傾きも安定するので、取れている間は fallback を使わない。
   if (Date.now() - lastMotionLevelAt < 1000) return;
-  updateLevelLine(getRollFromOrientation(event));
+  updateLevelGuide(getLevelFromOrientation(event));
 }
 
 async function requestSensorPermissionIfNeeded(EventClass) {
@@ -1532,9 +1604,12 @@ function stopCamera() {
   if (btnZoomReset) btnZoomReset.disabled = true;
   holder.style.setProperty('--digital-zoom', '1');
   holder.style.setProperty('--level-roll-angle', '0deg');
+  holder.style.setProperty('--level-pitch-offset', '0px');
   lastMotionLevelAt = 0;
   lastLevelRoll = 0;
-  if (levelCross) levelCross.classList.remove('level-ok');
+  if (levelCross) {
+    levelCross.classList.remove('roll-ok', 'pitch-ok', 'level-ok');
+  }
   focusModeSelect.disabled = true;
   focusRange.disabled = true;
   btnRefocus.disabled = true;
