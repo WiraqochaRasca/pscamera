@@ -888,7 +888,7 @@
             </select>
             <span class="ai-scene-status" id="aiSceneStatus">待機中</span>
           </div>
-          <span class="setting-note">選択中のプリセットを初期値として、暗い/逆光/黄み/白飛びなどを軽く自動補正します。</span>
+          <span class="setting-note">ON時は明るさ・コントラスト・色味をAI優先にし、プリセットの色補正は重ねません。プリセットは主にガイド濃度などの補助設定に使います。</span>
         </label>
 
         <label>
@@ -985,7 +985,7 @@
 
       <div class="footer">
         <span>PC: 矢印キーで切替 / スマホ: スワイプ</span>
-        <span>v1.12-preset-based-ai</span>
+        <span>v1.13-ai-priority-preset</span>
       </div>
     </div>
   </div>
@@ -1026,7 +1026,7 @@ const autoAdjustCanvas = document.createElement('canvas');
 const autoAdjustCtx = autoAdjustCanvas.getContext('2d', { willReadFrequently: true });
 
 const OUTPUT_SIZE = 3072;
-const SETTINGS_KEY = 'pokestopCameraSettings.v4';
+const SETTINGS_KEY = 'pokestopCameraSettings.v5';
 const PRESETS = {
   standard: {
     name: '標準',
@@ -1125,7 +1125,6 @@ const btnClearAll = document.getElementById('btn-clear-all');
 const btnSaveAll = document.getElementById('btn-save-all');
 const captureCanvas = document.getElementById('captureCanvas');
 
-const autoSaveMode = document.getElementById('autoSaveMode');
 const presetSelect = document.getElementById('presetSelect');
 const btnApplyPreset = document.getElementById('btn-apply-preset');
 const aiSceneMode = document.getElementById('aiSceneMode');
@@ -1412,6 +1411,26 @@ function setAiSceneStatus(message) {
 
 function shouldRunAutoAdjustment() {
   return isBrightnessAuto() || isContrastAuto() || isWhiteBalanceAuto() || isAiSceneOn();
+}
+
+function getAdjustmentBase() {
+  // 案2: AIシーン強化ONのときはプリセットの明るさ/色味補正を重ねず、AI判定を優先する。
+  // OFFのときだけプリセットをベース設定として使う。
+  if (isAiSceneOn()) {
+    return {
+      brightness: 100,
+      contrast: 100,
+      temperature: 0,
+      tint: 0
+    };
+  }
+
+  return {
+    brightness: presetBaseBrightness,
+    contrast: presetBaseContrast,
+    temperature: presetBaseTemperature,
+    tint: presetBaseTint
+  };
 }
 
 function isWhiteBalanceAuto() {
@@ -1716,15 +1735,27 @@ function detectAiScene(metrics) {
 function applyWhiteBalanceFromMetrics(metrics, aiCorrection) {
   if (!isWhiteBalanceAuto() || !metrics) return;
 
-  // プリセットを初期値として使い、映像解析とAI判定は弱めの微調整に留める。
-  const sceneTemp = Math.round((metrics.bMean - metrics.rMean) * 0.10);
-  const sceneTint = Math.round(((metrics.rMean + metrics.bMean) / 2 - metrics.gMean) * 0.08);
+  const base = getAdjustmentBase();
 
-  const aiTemp = aiCorrection ? aiCorrection.temperature * 0.45 : 0;
-  const aiTint = aiCorrection ? aiCorrection.tint * 0.45 : 0;
+  if (isAiSceneOn()) {
+    // AI優先: プリセットの色温度/色かぶり補正を重ねない。
+    const sceneTemp = Math.round((metrics.bMean - metrics.rMean) * 0.24);
+    const sceneTint = Math.round(((metrics.rMean + metrics.bMean) / 2 - metrics.gMean) * 0.16);
 
-  temperatureRange.value = clampValue(presetBaseTemperature + sceneTemp + aiTemp, -45, 45);
-  tintRange.value = clampValue(presetBaseTint + sceneTint + aiTint, -35, 35);
+    const aiTemp = aiCorrection ? aiCorrection.temperature * 0.75 : 0;
+    const aiTint = aiCorrection ? aiCorrection.tint * 0.75 : 0;
+
+    temperatureRange.value = clampValue(base.temperature + sceneTemp + aiTemp, -45, 45);
+    tintRange.value = clampValue(base.tint + sceneTint + aiTint, -35, 35);
+  } else {
+    // AI OFF: プリセットをベースとして自動ホワイトバランスを弱めに加える。
+    const sceneTemp = Math.round((metrics.bMean - metrics.rMean) * 0.10);
+    const sceneTint = Math.round(((metrics.rMean + metrics.bMean) / 2 - metrics.gMean) * 0.08);
+
+    temperatureRange.value = clampValue(base.temperature + sceneTemp, -45, 45);
+    tintRange.value = clampValue(base.tint + sceneTint, -35, 35);
+  }
+
   updateWhiteBalanceLabels();
 }
 
@@ -1740,23 +1771,39 @@ function runAutoAdjustment() {
       ? detectAiScene(metrics)
       : { label: 'OFF', brightness: 0, contrast: 0, temperature: 0, tint: 0 };
 
-    // プリセットを初期値として使う。明るさ/コントラストの自動補正とAI補正は弱めに加算。
-    const baseBrightness = isBrightnessAuto()
-      ? clampValue(presetBaseBrightness + (128 - metrics.mean) * 0.25, 65, 140)
-      : previewBrightness;
+    const base = getAdjustmentBase();
 
-    const baseContrast = isContrastAuto()
-      ? clampValue(presetBaseContrast + (52 - metrics.stdDev) * 0.35, 75, 135)
-      : previewContrast;
+    let baseBrightness;
+    let baseContrast;
 
-    const aiStrength = 0.45;
+    if (isAiSceneOn()) {
+      // AI優先: プリセットの明るさ/コントラスト補正を重ねない。
+      baseBrightness = isBrightnessAuto()
+        ? clampValue(base.brightness + (128 - metrics.mean) * 0.45, 60, 145)
+        : previewBrightness;
+
+      baseContrast = isContrastAuto()
+        ? clampValue(base.contrast + (52 - metrics.stdDev) * 0.65, 70, 140)
+        : previewContrast;
+    } else {
+      // AI OFF: プリセットをベースにした従来の自動補正。
+      baseBrightness = isBrightnessAuto()
+        ? clampValue(base.brightness + (128 - metrics.mean) * 0.25, 65, 140)
+        : previewBrightness;
+
+      baseContrast = isContrastAuto()
+        ? clampValue(base.contrast + (52 - metrics.stdDev) * 0.35, 75, 135)
+        : previewContrast;
+    }
+
+    const aiStrength = isAiSceneOn() ? 0.85 : 0;
     const nextBrightness = clampValue(baseBrightness + aiCorrection.brightness * aiStrength, 60, 145);
     const nextContrast = clampValue(baseContrast + aiCorrection.contrast * aiStrength, 70, 140);
 
     applyWhiteBalanceFromMetrics(metrics, isAiSceneOn() ? aiCorrection : null);
 
     if (isAiSceneOn()) {
-      setAiSceneStatus(`判定: ${aiCorrection.label} / プリセット基準`);
+      setAiSceneStatus(`判定: ${aiCorrection.label} / AI優先`);
     } else {
       setAiSceneStatus('OFF');
     }
@@ -2205,7 +2252,7 @@ async function startCamera() {
     updateGuideOpacity();
     updateAdjustmentControlState();
     if (isAiSceneOn()) {
-      setAiSceneStatus('判定中...');
+      setAiSceneStatus('AI優先で判定中...');
     } else {
       setAiSceneStatus('OFF');
     }
@@ -2521,7 +2568,7 @@ if (aiSceneMode) {
   aiSceneMode.addEventListener('change', () => {
     saveSettings();
     if (isAiSceneOn()) {
-      setAiSceneStatus('待機中');
+      setAiSceneStatus('AI優先で待機中');
       if (cameraStream) startAutoAdjustment();
     } else {
       setAiSceneStatus('OFF');
