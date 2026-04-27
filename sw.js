@@ -1,4 +1,4 @@
-const CACHE_NAME = 'pokestop-camera-pwa-v6-full-features';
+const CACHE_NAME = 'pscamera-pwa-v7-autosave-presets';
 const APP_SHELL = [
   './',
   './index.html',

@@ -576,6 +576,19 @@
       min-height: 34px;
     }
 
+    .preset-row,
+    .autosave-row {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .preset-row select,
+    .autosave-row select {
+      min-height: 34px;
+    }
+
 
 
     .camera-zoom-panel {
@@ -636,7 +649,8 @@
     body.shooting-mode .image-management,
     body.shooting-mode .dropzone,
     body.shooting-mode .camera-controls,
-    body.shooting-mode .footer {
+    body.shooting-mode .footer,
+    body.shooting-mode .nav-btn {
       display: none !important;
     }
 
@@ -816,6 +830,21 @@
         <button class="camera-btn" id="btn-save" disabled>保存/共有</button>
       </div>
 
+      <div class="camera-controls">
+        <label>
+          連続撮影時の自動保存
+          <div class="autosave-row">
+            <select id="autoSaveMode">
+              <option value="off" selected>オフ：後でまとめて保存</option>
+              <option value="download">撮影ごとに自動ダウンロード</option>
+              <option value="share">撮影ごとに共有メニューを開く</option>
+            </select>
+            <span class="setting-note">任意</span>
+          </div>
+          <span class="setting-note">スマホの仕様により、保存先は写真アプリではなくダウンロードになる場合があります。</span>
+        </label>
+      </div>
+
       <div class="utility-actions">
         <button class="camera-btn" id="btn-shooting-mode" type="button">撮影モード</button>
         <button class="camera-btn" id="btn-reset-settings" type="button">設定リセット</button>
@@ -835,6 +864,22 @@
       </div>
 
       <div class="camera-controls" id="cameraControls">
+        <label>
+          設定プリセット
+          <div class="preset-row">
+            <select id="presetSelect">
+              <option value="standard">標準</option>
+              <option value="daylight">昼用</option>
+              <option value="evening">夕方・黄み補正</option>
+              <option value="night">夜用</option>
+              <option value="indoor">室内・黄み補正</option>
+              <option value="thin-guide">ガイド薄め</option>
+            </select>
+            <button class="camera-btn" id="btn-apply-preset" type="button">適用</button>
+          </div>
+          <span class="setting-note">撮影環境に合わせて、明るさ・色味・ガイド濃度をまとめて切り替えます。</span>
+        </label>
+
         <label>
           明るさ
           <div class="adjustment-row">
@@ -929,7 +974,7 @@
 
       <div class="footer">
         <span>PC: 矢印キーで切替 / スマホ: スワイプ</span>
-        <span>v1.09-full-features</span>
+        <span>v1.10-autosave-presets</span>
       </div>
     </div>
   </div>
@@ -966,7 +1011,75 @@ const autoAdjustCanvas = document.createElement('canvas');
 const autoAdjustCtx = autoAdjustCanvas.getContext('2d', { willReadFrequently: true });
 
 const OUTPUT_SIZE = 3072;
-const SETTINGS_KEY = 'pokestopCameraSettings.v2';
+const SETTINGS_KEY = 'pokestopCameraSettings.v3';
+const PRESETS = {
+  standard: {
+    name: '標準',
+    brightnessMode: 'auto',
+    brightness: 100,
+    contrastMode: 'auto',
+    contrast: 100,
+    whiteBalanceMode: 'auto',
+    temperature: -8,
+    tint: 0,
+    guideOpacity: 45
+  },
+  daylight: {
+    name: '昼用',
+    brightnessMode: 'auto',
+    brightness: 100,
+    contrastMode: 'auto',
+    contrast: 100,
+    whiteBalanceMode: 'auto',
+    temperature: -8,
+    tint: 0,
+    guideOpacity: 38
+  },
+  evening: {
+    name: '夕方・黄み補正',
+    brightnessMode: 'auto',
+    brightness: 105,
+    contrastMode: 'auto',
+    contrast: 105,
+    whiteBalanceMode: 'manual',
+    temperature: -24,
+    tint: 0,
+    guideOpacity: 42
+  },
+  night: {
+    name: '夜用',
+    brightnessMode: 'manual',
+    brightness: 115,
+    contrastMode: 'manual',
+    contrast: 110,
+    whiteBalanceMode: 'manual',
+    temperature: -16,
+    tint: 0,
+    guideOpacity: 52
+  },
+  indoor: {
+    name: '室内・黄み補正',
+    brightnessMode: 'auto',
+    brightness: 105,
+    contrastMode: 'auto',
+    contrast: 105,
+    whiteBalanceMode: 'manual',
+    temperature: -28,
+    tint: 0,
+    guideOpacity: 45
+  },
+  'thin-guide': {
+    name: 'ガイド薄め',
+    brightnessMode: 'auto',
+    brightness: 100,
+    contrastMode: 'auto',
+    contrast: 100,
+    whiteBalanceMode: 'auto',
+    temperature: -8,
+    tint: 0,
+    guideOpacity: 25
+  }
+};
 
 const body = document.body;
 const holder = document.getElementById('holder');
@@ -996,6 +1109,10 @@ const btnDeleteCurrent = document.getElementById('btn-delete-current');
 const btnClearAll = document.getElementById('btn-clear-all');
 const btnSaveAll = document.getElementById('btn-save-all');
 const captureCanvas = document.getElementById('captureCanvas');
+
+const autoSaveMode = document.getElementById('autoSaveMode');
+const presetSelect = document.getElementById('presetSelect');
+const btnApplyPreset = document.getElementById('btn-apply-preset');
 
 const brightnessMode = document.getElementById('brightnessMode');
 const brightnessRange = document.getElementById('brightnessRange');
@@ -1168,7 +1285,8 @@ function getAppSettings() {
     tint: Number(tintRange.value),
     guideOpacity: Number(guideOpacityRange.value),
     aspect: aspectSelect.value,
-    zoom: Number(currentZoom) || 1
+    zoom: Number(currentZoom) || 1,
+    autoSaveMode: autoSaveMode ? autoSaveMode.value : 'off'
   };
 }
 
@@ -1200,6 +1318,7 @@ function loadSettings() {
     if (Number.isFinite(Number(settings.guideOpacity))) guideOpacityRange.value = settings.guideOpacity;
     if (settings.aspect) aspectSelect.value = settings.aspect;
     if (Number.isFinite(Number(settings.zoom))) currentZoom = Number(settings.zoom);
+    if (autoSaveMode && settings.autoSaveMode) autoSaveMode.value = settings.autoSaveMode;
   } catch (error) {
     console.warn('settings load failed', error);
   }
@@ -1222,12 +1341,35 @@ function resetSettings() {
   guideOpacityRange.value = 45;
   aspectSelect.value = '1:1';
   currentZoom = minZoom || 1;
+  if (autoSaveMode) autoSaveMode.value = 'off';
 
   updateAdjustmentControlState();
   updateWhiteBalanceControlState();
   updateGuideOpacity();
   applyPreviewAspect();
   applyZoom(currentZoom);
+  saveSettings();
+}
+
+function applyPreset(presetName) {
+  const preset = PRESETS[presetName];
+  if (!preset) return;
+
+  brightnessMode.value = preset.brightnessMode;
+  brightnessRange.value = preset.brightness;
+
+  contrastMode.value = preset.contrastMode;
+  contrastRange.value = preset.contrast;
+
+  whiteBalanceMode.value = preset.whiteBalanceMode;
+  temperatureRange.value = preset.temperature;
+  tintRange.value = preset.tint;
+
+  guideOpacityRange.value = preset.guideOpacity;
+
+  updateAdjustmentControlState();
+  updateWhiteBalanceControlState();
+  updateGuideOpacity();
   saveSettings();
 }
 
@@ -1991,6 +2133,8 @@ function captureFromCamera() {
     render();
     holder.classList.add('camera-on');
     btnShot.disabled = false;
+
+    handleAutoSave(current);
   } catch (error) {
     console.error(error);
     alert('撮影に失敗しました: ' + (error.message || error));
@@ -2013,24 +2157,6 @@ function clearAllImages() {
   imgs = [];
   current = 0;
   render();
-}
-
-async function downloadBlob(blob, filename) {
-  await downloadBlob(blob, filename);
-}
-
-async function saveAllImages() {
-  if (!imgs.length) {
-    alert('保存する画像がありません。');
-    return;
-  }
-
-  for (let i = 0; i < imgs.length; i++) {
-    const blob = dataURLToBlob(imgs[i].src);
-    const filename = `pokestop-postcard-${String(i + 1).padStart(2, '0')}-${new Date().toISOString().replace(/[:.]/g, '-')}.jpg`;
-    await downloadBlob(blob, filename);
-    await new Promise(resolve => setTimeout(resolve, 180));
-  }
 }
 
 function toggleShootingMode() {
@@ -2063,28 +2189,13 @@ function dataURLToBlob(dataURL) {
   return new Blob([array], { type: mime });
 }
 
-async function saveCurrentImage() {
-  if (current < 0 || !imgs[current] || !imgs[current].src) {
-    alert('保存する画像がありません。先に撮影してください。');
-    return;
-  }
+function makeImageFilename(index = current) {
+  const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+  const number = Number.isFinite(index) && index >= 0 ? `-${String(index + 1).padStart(2, '0')}` : '';
+  return `pokestop-postcard${number}-${stamp}.jpg`;
+}
 
-  const blob = dataURLToBlob(imgs[current].src);
-  const filename = `pokestop-postcard-${new Date().toISOString().replace(/[:.]/g, '-')}.jpg`;
-  const file = new File([blob], filename, { type: 'image/jpeg' });
-
-  if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
-    try {
-      await navigator.share({
-        files: [file],
-        title: 'ポストカード画像'
-      });
-      return;
-    } catch (error) {
-      console.log('共有がキャンセルされました', error);
-    }
-  }
-
+function downloadImageBlob(blob, filename) {
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;
@@ -2094,6 +2205,61 @@ async function saveCurrentImage() {
   link.remove();
 
   setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+async function saveImageByIndex(index, options = {}) {
+  if (index < 0 || !imgs[index] || !imgs[index].src) {
+    if (!options.silent) alert('保存する画像がありません。先に撮影してください。');
+    return false;
+  }
+
+  const blob = dataURLToBlob(imgs[index].src);
+  const filename = makeImageFilename(index);
+  const file = new File([blob], filename, { type: 'image/jpeg' });
+
+  if (options.share && navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+    try {
+      await navigator.share({
+        files: [file],
+        title: 'ポストカード画像'
+      });
+      return true;
+    } catch (error) {
+      console.log('共有がキャンセルまたは失敗しました', error);
+      if (options.shareOnly) return false;
+    }
+  }
+
+  downloadImageBlob(blob, filename);
+  return true;
+}
+
+function handleAutoSave(index) {
+  if (!autoSaveMode || autoSaveMode.value === 'off') return;
+
+  if (autoSaveMode.value === 'download') {
+    saveImageByIndex(index, { silent: true, share: false });
+  }
+
+  if (autoSaveMode.value === 'share') {
+    saveImageByIndex(index, { silent: true, share: true, shareOnly: true });
+  }
+}
+
+async function saveAllImages() {
+  if (!imgs.length) {
+    alert('保存する画像がありません。');
+    return;
+  }
+
+  for (let i = 0; i < imgs.length; i++) {
+    await saveImageByIndex(i, { silent: true, share: false });
+    await new Promise(resolve => setTimeout(resolve, 180));
+  }
+}
+
+async function saveCurrentImage() {
+  await saveImageByIndex(current, { share: true });
 }
 
 btnDisk.addEventListener('click', () => setMode('disk'));
@@ -2158,6 +2324,14 @@ tintRange.addEventListener('input', () => {
   saveSettings();
 });
 guideOpacityRange.addEventListener('input', updateGuideOpacity);
+
+if (autoSaveMode) {
+  autoSaveMode.addEventListener('change', saveSettings);
+}
+
+if (btnApplyPreset) {
+  btnApplyPreset.addEventListener('click', () => applyPreset(presetSelect.value));
+}
 
 zoomRange.addEventListener('input', () => applyZoom(zoomRange.value));
 if (btnZoomOut) {
