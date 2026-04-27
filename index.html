@@ -18,9 +18,8 @@
       --camera-aspect: 1 / 1;
       --preview-brightness: 100%;
       --preview-contrast: 100%;
-      --preview-saturation: 110%;
       --digital-zoom: 1;
-      --guide-opacity: .45;
+      --guide-opacity: 1;
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -240,7 +239,7 @@
       display: none;
       z-index: 0;
       background: #000;
-      filter: brightness(var(--preview-brightness)) contrast(var(--preview-contrast)) saturate(var(--preview-saturation));
+      filter: brightness(var(--preview-brightness)) contrast(var(--preview-contrast));
       transform: scale(var(--digital-zoom));
       transform-origin: center center;
     }
@@ -889,41 +888,7 @@
             </select>
             <span class="ai-scene-status" id="aiSceneStatus">待機中</span>
           </div>
-          <span class="setting-note">ON時は明るさ・コントラスト・色味をAI優先にし、プリセットの色補正は重ねません。プリセットは主にガイド濃度などの補助設定に使います。</span>
-        </label>
-
-        <label>
-          色鮮やかさ
-          <div class="adjustment-row">
-            <select id="colorMode" class="adjustment-mode">
-              <option value="auto" selected>自動</option>
-              <option value="manual">手動</option>
-            </select>
-            <span id="colorValue">自動</span>
-          </div>
-          <span class="setting-note">OPPO標準カメラより色が薄い時は、端末プリセットを「OPPO Find X3 Pro風」にしてください。</span>
-        </label>
-
-        <label>
-          彩度
-          <input type="range" id="saturationRange" min="80" max="140" step="1" value="110" disabled>
-          <span id="saturationValue">110%</span>
-        </label>
-
-        <label>
-          自然な鮮やかさ
-          <input type="range" id="vibranceRange" min="0" max="100" step="1" value="20" disabled>
-          <span id="vibranceValue">20</span>
-        </label>
-
-        <label>
-          端末プリセット
-          <select id="deviceColorPreset">
-            <option value="standard">標準</option>
-            <option value="oppo-find-x3-pro">OPPO Find X3 Pro風</option>
-            <option value="natural">ナチュラル</option>
-            <option value="vivid">鮮やか</option>
-          </select>
+          <span class="setting-note">ON時は明るさ・コントラスト・色味をAI優先にし、プリセットの色補正は重ねません。</span>
         </label>
 
         <label>
@@ -977,8 +942,8 @@
 
         <label>
           ガイド濃度
-          <input type="range" id="guideOpacityRange" min="0" max="100" step="1" value="45">
-          <span id="guideOpacityValue">45%</span>
+          <input type="range" id="guideOpacityRange" min="0" max="100" step="1" value="100">
+          <span id="guideOpacityValue">100%</span>
         </label>
 
         <label>
@@ -992,24 +957,15 @@
           </select>
         </label>
 
-        <label>
-          フォーカス
+        <div hidden>
           <select id="focusModeSelect" disabled>
             <option value="continuous">自動</option>
             <option value="manual">手動</option>
           </select>
-        </label>
-
-        <label>
-          手動フォーカス距離
           <input type="range" id="focusRange" min="0" max="1" step="0.01" value="0" disabled>
-        </label>
-
-        <label>
-          露出補正
           <input type="range" id="exposureRange" min="0" max="0" step="1" value="0" disabled>
           <span id="exposureValue">非対応</span>
-        </label>
+        </div>
 
         <button class="camera-btn" id="btn-refocus" disabled>フォーカス再調整</button>
 
@@ -1020,7 +976,7 @@
 
       <div class="footer">
         <span>PC: 矢印キーで切替 / スマホ: スワイプ</span>
-        <span>v1.14-color-enhance</span>
+        <span>v1.15-minimal-controls</span>
       </div>
     </div>
   </div>
@@ -1038,8 +994,6 @@ let lastCameraShotIndex = -1;
 
 let previewBrightness = 100;
 let previewContrast = 100;
-let previewSaturation = 110;
-let previewVibrance = 20;
 let previewTemperature = -8;
 let previewTint = 0;
 let presetBaseBrightness = 100;
@@ -1063,7 +1017,7 @@ const autoAdjustCanvas = document.createElement('canvas');
 const autoAdjustCtx = autoAdjustCanvas.getContext('2d', { willReadFrequently: true });
 
 const OUTPUT_SIZE = 3072;
-const SETTINGS_KEY = 'pokestopCameraSettings.v6';
+const SETTINGS_KEY = 'pokestopCameraSettings.v7';
 const PRESETS = {
   standard: {
     name: '標準',
@@ -1074,7 +1028,7 @@ const PRESETS = {
     whiteBalanceMode: 'auto',
     temperature: -8,
     tint: 0,
-    guideOpacity: 45
+    guideOpacity: 100
   },
   daylight: {
     name: '昼用',
@@ -1085,7 +1039,7 @@ const PRESETS = {
     whiteBalanceMode: 'auto',
     temperature: -8,
     tint: 0,
-    guideOpacity: 38
+    guideOpacity: 100
   },
   evening: {
     name: '夕方・黄み補正',
@@ -1096,7 +1050,7 @@ const PRESETS = {
     whiteBalanceMode: 'auto',
     temperature: -24,
     tint: 0,
-    guideOpacity: 42
+    guideOpacity: 100
   },
   night: {
     name: '夜用',
@@ -1107,7 +1061,7 @@ const PRESETS = {
     whiteBalanceMode: 'auto',
     temperature: -16,
     tint: 0,
-    guideOpacity: 52
+    guideOpacity: 100
   },
   indoor: {
     name: '室内・黄み補正',
@@ -1118,7 +1072,7 @@ const PRESETS = {
     whiteBalanceMode: 'auto',
     temperature: -28,
     tint: 0,
-    guideOpacity: 45
+    guideOpacity: 100
   },
   'thin-guide': {
     name: 'ガイド薄め',
@@ -1130,29 +1084,6 @@ const PRESETS = {
     temperature: -8,
     tint: 0,
     guideOpacity: 25
-  }
-};
-
-const DEVICE_COLOR_PRESETS = {
-  standard: {
-    name: '標準',
-    saturation: 110,
-    vibrance: 18
-  },
-  'oppo-find-x3-pro': {
-    name: 'OPPO Find X3 Pro風',
-    saturation: 118,
-    vibrance: 34
-  },
-  natural: {
-    name: 'ナチュラル',
-    saturation: 102,
-    vibrance: 8
-  },
-  vivid: {
-    name: '鮮やか',
-    saturation: 126,
-    vibrance: 46
   }
 };
 
@@ -1189,13 +1120,6 @@ const presetSelect = document.getElementById('presetSelect');
 const btnApplyPreset = document.getElementById('btn-apply-preset');
 const aiSceneMode = document.getElementById('aiSceneMode');
 const aiSceneStatus = document.getElementById('aiSceneStatus');
-const colorMode = document.getElementById('colorMode');
-const colorValue = document.getElementById('colorValue');
-const saturationRange = document.getElementById('saturationRange');
-const saturationValue = document.getElementById('saturationValue');
-const vibranceRange = document.getElementById('vibranceRange');
-const vibranceValue = document.getElementById('vibranceValue');
-const deviceColorPreset = document.getElementById('deviceColorPreset');
 
 const brightnessMode = document.getElementById('brightnessMode');
 const brightnessRange = document.getElementById('brightnessRange');
@@ -1369,11 +1293,7 @@ function getAppSettings() {
     guideOpacity: Number(guideOpacityRange.value),
     aspect: aspectSelect.value,
     zoom: Number(currentZoom) || 1,
-    aiSceneMode: aiSceneMode ? aiSceneMode.value : 'on',
-    colorMode: colorMode ? colorMode.value : 'auto',
-    saturation: Number(saturationRange.value),
-    vibrance: Number(vibranceRange.value),
-    deviceColorPreset: deviceColorPreset ? deviceColorPreset.value : 'standard'
+    aiSceneMode: aiSceneMode ? aiSceneMode.value : 'on'
   };
 }
 
@@ -1406,10 +1326,6 @@ function loadSettings() {
     if (settings.aspect) aspectSelect.value = settings.aspect;
     if (Number.isFinite(Number(settings.zoom))) currentZoom = Number(settings.zoom);
     if (aiSceneMode && settings.aiSceneMode) aiSceneMode.value = settings.aiSceneMode;
-    if (colorMode && settings.colorMode) colorMode.value = settings.colorMode;
-    if (Number.isFinite(Number(settings.saturation))) saturationRange.value = settings.saturation;
-    if (Number.isFinite(Number(settings.vibrance))) vibranceRange.value = settings.vibrance;
-    if (deviceColorPreset && settings.deviceColorPreset) deviceColorPreset.value = settings.deviceColorPreset;
   } catch (error) {
     console.warn('settings load failed', error);
   }
@@ -1429,18 +1345,13 @@ function resetSettings() {
   whiteBalanceMode.value = 'auto';
   temperatureRange.value = -8;
   tintRange.value = 0;
-  guideOpacityRange.value = 45;
+  guideOpacityRange.value = 100;
   aspectSelect.value = '1:1';
   currentZoom = minZoom || 1;
   if (aiSceneMode) aiSceneMode.value = 'on';
-  if (colorMode) colorMode.value = 'auto';
-  if (deviceColorPreset) deviceColorPreset.value = 'standard';
-  saturationRange.value = 110;
-  vibranceRange.value = 20;
   setAiSceneStatus('待機中');
   syncPresetBaseFromControls();
 
-  updateColorControlState();
   updateAdjustmentControlState();
   updateWhiteBalanceControlState();
   updateGuideOpacity();
@@ -1490,7 +1401,7 @@ function setAiSceneStatus(message) {
 }
 
 function shouldRunAutoAdjustment() {
-  return isBrightnessAuto() || isContrastAuto() || isWhiteBalanceAuto() || isColorAuto() || isAiSceneOn();
+  return isBrightnessAuto() || isContrastAuto() || isWhiteBalanceAuto() || isAiSceneOn();
 }
 
 function getAdjustmentBase() {
@@ -1632,106 +1543,6 @@ function setPreviewFilter(brightness, contrast) {
 
   holder.style.setProperty('--preview-brightness', `${previewBrightness}%`);
   holder.style.setProperty('--preview-contrast', `${previewContrast}%`);
-}
-
-function getDeviceColorPreset() {
-  const key = deviceColorPreset ? deviceColorPreset.value : 'standard';
-  return DEVICE_COLOR_PRESETS[key] || DEVICE_COLOR_PRESETS.standard;
-}
-
-function isColorAuto() {
-  return colorMode && colorMode.value === 'auto';
-}
-
-function setColorEnhancement(saturation, vibrance) {
-  previewSaturation = Math.round(clampValue(Number(saturation), 80, 140));
-  previewVibrance = Math.round(clampValue(Number(vibrance), 0, 100));
-
-  saturationRange.value = previewSaturation;
-  vibranceRange.value = previewVibrance;
-  saturationValue.textContent = `${previewSaturation}%`;
-  vibranceValue.textContent = `${previewVibrance}`;
-
-  colorValue.textContent = isColorAuto() ? `自動 ${previewSaturation}% / ${previewVibrance}` : `手動 ${previewSaturation}% / ${previewVibrance}`;
-  holder.style.setProperty('--preview-saturation', `${previewSaturation}%`);
-}
-
-function updateColorControlState() {
-  const auto = isColorAuto();
-  saturationRange.disabled = auto;
-  vibranceRange.disabled = auto;
-
-  if (auto) {
-    const preset = getDeviceColorPreset();
-    setColorEnhancement(preset.saturation, preset.vibrance);
-  } else {
-    setColorEnhancement(saturationRange.value, vibranceRange.value);
-  }
-
-  if (cameraStream && shouldRunAutoAdjustment()) {
-    startAutoAdjustment();
-  } else if (!shouldRunAutoAdjustment()) {
-    stopAutoAdjustment();
-  }
-
-  saveSettings();
-}
-
-function updateColorEnhancementFromManual() {
-  setColorEnhancement(saturationRange.value, vibranceRange.value);
-  saveSettings();
-}
-
-function applyDeviceColorPreset() {
-  const preset = getDeviceColorPreset();
-  setColorEnhancement(preset.saturation, preset.vibrance);
-  saveSettings();
-}
-
-function updateAutoColorEnhancement(metrics) {
-  const preset = getDeviceColorPreset();
-
-  if (!isColorAuto() || !metrics) {
-    setColorEnhancement(saturationRange.value, vibranceRange.value);
-    return;
-  }
-
-  const lowColorBoost = clampValue((48 - metrics.saturation) * 0.45, -8, 14);
-  const darkBoost = metrics.mean < 90 ? 4 : 0;
-  const overBrightReduce = metrics.brightRatio > 0.18 ? -4 : 0;
-
-  const nextSaturation = clampValue(preset.saturation + lowColorBoost + darkBoost + overBrightReduce, 80, 140);
-  const nextVibrance = clampValue(preset.vibrance + lowColorBoost * 1.4 + (metrics.stdDev < 30 ? 6 : 0), 0, 100);
-
-  setColorEnhancement(nextSaturation, nextVibrance);
-}
-
-function applyVibranceToCanvas(ctx, width, height) {
-  const vibrance = Number(previewVibrance);
-  if (!vibrance) return;
-
-  const image = ctx.getImageData(0, 0, width, height);
-  const data = image.data;
-  const strength = clampValue(vibrance, 0, 100) / 100 * 0.65;
-
-  for (let i = 0; i < data.length; i += 4) {
-    const r = data[i];
-    const g = data[i + 1];
-    const b = data[i + 2];
-
-    const max = Math.max(r, g, b);
-    const min = Math.min(r, g, b);
-    const avg = (r + g + b) / 3;
-    const saturation = max - min;
-
-    const boost = strength * (1 - saturation / 255);
-
-    data[i] = clampValue(avg + (r - avg) * (1 + boost), 0, 255);
-    data[i + 1] = clampValue(avg + (g - avg) * (1 + boost), 0, 255);
-    data[i + 2] = clampValue(avg + (b - avg) * (1 + boost), 0, 255);
-  }
-
-  ctx.putImageData(image, 0, 0);
 }
 
 function isBrightnessAuto() {
@@ -1981,7 +1792,6 @@ function runAutoAdjustment() {
     const nextContrast = clampValue(baseContrast + aiCorrection.contrast * aiStrength, 70, 140);
 
     applyWhiteBalanceFromMetrics(metrics, isAiSceneOn() ? aiCorrection : null);
-    updateAutoColorEnhancement(metrics);
 
     if (isAiSceneOn()) {
       setAiSceneStatus(`判定: ${aiCorrection.label} / AI優先`);
@@ -2538,11 +2348,10 @@ function captureFromCamera() {
     }
 
     const ctx = captureCanvas.getContext('2d');
-    ctx.filter = `brightness(${previewBrightness}%) contrast(${previewContrast}%) saturate(${previewSaturation}%)`;
+    ctx.filter = `brightness(${previewBrightness}%) contrast(${previewContrast}%)`;
     drawVideoCover(ctx, cameraVideo, w, h);
     ctx.filter = 'none';
     applyWhiteBalanceToCanvas(ctx, w, h);
-    applyVibranceToCanvas(ctx, w, h);
 
     const src = captureCanvas.toDataURL('image/jpeg', 0.95);
 
@@ -2763,13 +2572,6 @@ if (btnApplyPreset) {
   btnApplyPreset.addEventListener('click', () => applyPreset(presetSelect.value));
 }
 
-if (colorMode) {
-  colorMode.addEventListener('change', updateColorControlState);
-}
-saturationRange.addEventListener('input', updateColorEnhancementFromManual);
-vibranceRange.addEventListener('input', updateColorEnhancementFromManual);
-deviceColorPreset.addEventListener('change', applyDeviceColorPreset);
-
 zoomRange.addEventListener('input', () => applyZoom(zoomRange.value));
 if (btnZoomOut) {
   btnZoomOut.addEventListener('click', () => applyZoom(currentZoom - zoomStep));
@@ -2822,7 +2624,6 @@ syncPresetBaseFromControls();
 applyPreviewAspect();
 updateWhiteBalanceControlState();
 updateGuideOpacity();
-updateColorControlState();
 updateAdjustmentControlState();
 render();
 </script>
