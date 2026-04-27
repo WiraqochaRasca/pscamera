@@ -316,8 +316,8 @@
 
     .guide-line {
       position: absolute;
-      background: rgba(255, 255, 255, .75);
-      box-shadow: 0 0 2px rgba(0, 0, 0, .7);
+      background: rgba(255, 255, 255, .32);
+      box-shadow: 0 0 1px rgba(0, 0, 0, .35);
     }
 
     .guide-line-v { top: 0; bottom: 0; left: 50%; width: 1px; }
@@ -327,7 +327,7 @@
       position: absolute;
       left: 50%;
       top: 50%;
-      border: 1px solid rgba(255, 255, 255, .75);
+      border: 1px solid rgba(255, 255, 255, .35);
       border-radius: 50%;
       transform: translate(-50%, -50%);
       box-shadow: 0 0 2px rgba(0, 0, 0, .7);
@@ -349,8 +349,8 @@
       position: absolute;
       left: 50%;
       top: 50%;
-      background: rgba(255, 255, 255, .9);
-      box-shadow: 0 0 2px rgba(0, 0, 0, .75);
+      background: rgba(255, 255, 255, .45);
+      box-shadow: 0 0 1px rgba(0, 0, 0, .35);
       border-radius: 999px;
       transform: translate(-50%, -50%);
       transition: background .12s, box-shadow .12s;
@@ -358,17 +358,17 @@
 
     .level-horizontal {
       width: 78%;
-      height: 3px;
+      height: 2px;
     }
 
     .level-vertical {
-      width: 3px;
+      width: 2px;
       height: 78%;
     }
 
     .level-cross.level-ok .level-bar {
-      background: rgba(120, 255, 150, .98);
-      box-shadow: 0 0 6px rgba(120, 255, 150, .55), 0 0 2px rgba(0, 0, 0, .75);
+      background: rgba(120, 255, 150, .55);
+      box-shadow: 0 0 4px rgba(120, 255, 150, .18), 0 0 1px rgba(0, 0, 0, .28);
     }
 
     .level-center-dot {
@@ -378,20 +378,20 @@
       width: 10px;
       height: 10px;
       border-radius: 50%;
-      background: rgba(255, 255, 255, .95);
+      background: rgba(255, 255, 255, .58);
       transform: translate(-50%, -50%);
-      box-shadow: 0 0 2px rgba(0, 0, 0, .75);
+      box-shadow: 0 0 1px rgba(0, 0, 0, .35);
     }
 
     .level-cross.roll-ok .level-horizontal,
     .level-cross.pitch-ok .level-vertical {
-      background: rgba(120, 255, 150, .98);
-      box-shadow: 0 0 6px rgba(120, 255, 150, .55), 0 0 2px rgba(0, 0, 0, .75);
+      background: rgba(120, 255, 150, .55);
+      box-shadow: 0 0 4px rgba(120, 255, 150, .18), 0 0 1px rgba(0, 0, 0, .28);
     }
 
     .level-cross.level-ok .level-bar {
-      background: rgba(120, 255, 150, .98);
-      box-shadow: 0 0 6px rgba(120, 255, 150, .55), 0 0 2px rgba(0, 0, 0, .75);
+      background: rgba(120, 255, 150, .55);
+      box-shadow: 0 0 4px rgba(120, 255, 150, .18), 0 0 1px rgba(0, 0, 0, .28);
     }
 
     .level-cross.level-ok .level-center-dot {
@@ -402,21 +402,21 @@
       position: absolute;
       left: 50%;
       top: calc(50% + var(--level-pitch-offset, 0px));
-      width: 18px;
-      height: 18px;
-      border: 2px solid rgba(255, 255, 255, .95);
+      width: 14px;
+      height: 14px;
+      border: 1px solid rgba(255, 255, 255, .55);
       border-radius: 50%;
-      background: rgba(0, 0, 0, .18);
+      background: rgba(255, 255, 255, .08);
       transform: translate(-50%, -50%);
-      box-shadow: 0 0 4px rgba(0, 0, 0, .75);
+      box-shadow: 0 0 2px rgba(0, 0, 0, .28);
       transition: top .04s linear, background .12s, border-color .12s, box-shadow .12s;
     }
 
     .level-cross.pitch-ok .level-pitch-bubble,
     .level-cross.level-ok .level-pitch-bubble {
-      border-color: rgba(120, 255, 150, .98);
-      background: rgba(120, 255, 150, .85);
-      box-shadow: 0 0 8px rgba(120, 255, 150, .65), 0 0 2px rgba(0, 0, 0, .75);
+      border-color: rgba(120, 255, 150, .58);
+      background: rgba(120, 255, 150, .32);
+      box-shadow: 0 0 5px rgba(120, 255, 150, .18), 0 0 1px rgba(0, 0, 0, .25);
     }
 
     .focus-marker {
@@ -429,7 +429,7 @@
       pointer-events: none;
       transform: translate(-50%, -50%) scale(.8);
       opacity: 0;
-      box-shadow: 0 0 4px rgba(0, 0, 0, .75);
+      box-shadow: 0 0 2px rgba(0, 0, 0, .28);
     }
 
     .focus-marker.show { animation: focus-pop .75s ease-out; }
@@ -837,7 +837,7 @@
 
       <div class="footer">
         <span>PC: 矢印キーで切替 / スマホ: スワイプ</span>
-        <span>v1.07-pitch-level</span>
+        <span>v1.08-soft-level-lines</span>
       </div>
     </div>
   </div>

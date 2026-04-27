@@ -1,4 +1,4 @@
-const CACHE_NAME = 'pokestop-camera-pwa-v4-pitch-level';
+const CACHE_NAME = 'pokestop-camera-pwa-v5-soft-level-lines';
 const APP_SHELL = [
   './',
   './index.html',
