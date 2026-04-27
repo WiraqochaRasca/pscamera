@@ -844,21 +844,6 @@
         <button class="camera-btn" id="btn-save" disabled>保存/共有</button>
       </div>
 
-      <div class="camera-controls">
-        <label>
-          連続撮影時の自動保存
-          <div class="autosave-row">
-            <select id="autoSaveMode">
-              <option value="off" selected>オフ：後でまとめて保存</option>
-              <option value="download">撮影ごとに自動ダウンロード</option>
-              <option value="share">撮影ごとに共有メニューを開く</option>
-            </select>
-            <span class="setting-note">任意</span>
-          </div>
-          <span class="setting-note">スマホの仕様により、保存先は写真アプリではなくダウンロードになる場合があります。</span>
-        </label>
-      </div>
-
       <div class="utility-actions">
         <button class="camera-btn" id="btn-shooting-mode" type="button">撮影モード</button>
         <button class="camera-btn" id="btn-reset-settings" type="button">設定リセット</button>
@@ -891,7 +876,7 @@
             </select>
             <button class="camera-btn" id="btn-apply-preset" type="button">適用</button>
           </div>
-          <span class="setting-note">撮影環境に合わせて、明るさ・色味・ガイド濃度をまとめて切り替えます。</span>
+          <span class="setting-note">撮影環境のベースを選びます。AIシーン強化はこの設定を基準に微調整します。</span>
         </label>
 
         <label>
@@ -903,7 +888,7 @@
             </select>
             <span class="ai-scene-status" id="aiSceneStatus">待機中</span>
           </div>
-          <span class="setting-note">暗い/逆光/黄み/白飛びなどを判定して、明るさ・コントラスト・色味を自動で微調整します。</span>
+          <span class="setting-note">選択中のプリセットを初期値として、暗い/逆光/黄み/白飛びなどを軽く自動補正します。</span>
         </label>
 
         <label>
@@ -1000,7 +985,7 @@
 
       <div class="footer">
         <span>PC: 矢印キーで切替 / スマホ: スワイプ</span>
-        <span>v1.11-ai-scene</span>
+        <span>v1.12-preset-based-ai</span>
       </div>
     </div>
   </div>
@@ -1020,6 +1005,10 @@ let previewBrightness = 100;
 let previewContrast = 100;
 let previewTemperature = -8;
 let previewTint = 0;
+let presetBaseBrightness = 100;
+let presetBaseContrast = 100;
+let presetBaseTemperature = -8;
+let presetBaseTint = 0;
 let guideOpacity = 45;
 let currentZoom = 1;
 let hardwareZoomSupported = false;
@@ -1037,7 +1026,7 @@ const autoAdjustCanvas = document.createElement('canvas');
 const autoAdjustCtx = autoAdjustCanvas.getContext('2d', { willReadFrequently: true });
 
 const OUTPUT_SIZE = 3072;
-const SETTINGS_KEY = 'pokestopCameraSettings.v3';
+const SETTINGS_KEY = 'pokestopCameraSettings.v4';
 const PRESETS = {
   standard: {
     name: '標準',
@@ -1067,18 +1056,18 @@ const PRESETS = {
     brightness: 105,
     contrastMode: 'auto',
     contrast: 105,
-    whiteBalanceMode: 'manual',
+    whiteBalanceMode: 'auto',
     temperature: -24,
     tint: 0,
     guideOpacity: 42
   },
   night: {
     name: '夜用',
-    brightnessMode: 'manual',
+    brightnessMode: 'auto',
     brightness: 115,
-    contrastMode: 'manual',
+    contrastMode: 'auto',
     contrast: 110,
-    whiteBalanceMode: 'manual',
+    whiteBalanceMode: 'auto',
     temperature: -16,
     tint: 0,
     guideOpacity: 52
@@ -1089,7 +1078,7 @@ const PRESETS = {
     brightness: 105,
     contrastMode: 'auto',
     contrast: 105,
-    whiteBalanceMode: 'manual',
+    whiteBalanceMode: 'auto',
     temperature: -28,
     tint: 0,
     guideOpacity: 45
@@ -1314,7 +1303,6 @@ function getAppSettings() {
     guideOpacity: Number(guideOpacityRange.value),
     aspect: aspectSelect.value,
     zoom: Number(currentZoom) || 1,
-    autoSaveMode: autoSaveMode ? autoSaveMode.value : 'off',
     aiSceneMode: aiSceneMode ? aiSceneMode.value : 'on'
   };
 }
@@ -1347,7 +1335,6 @@ function loadSettings() {
     if (Number.isFinite(Number(settings.guideOpacity))) guideOpacityRange.value = settings.guideOpacity;
     if (settings.aspect) aspectSelect.value = settings.aspect;
     if (Number.isFinite(Number(settings.zoom))) currentZoom = Number(settings.zoom);
-    if (autoSaveMode && settings.autoSaveMode) autoSaveMode.value = settings.autoSaveMode;
     if (aiSceneMode && settings.aiSceneMode) aiSceneMode.value = settings.aiSceneMode;
   } catch (error) {
     console.warn('settings load failed', error);
@@ -1371,9 +1358,9 @@ function resetSettings() {
   guideOpacityRange.value = 45;
   aspectSelect.value = '1:1';
   currentZoom = minZoom || 1;
-  if (autoSaveMode) autoSaveMode.value = 'off';
   if (aiSceneMode) aiSceneMode.value = 'on';
   setAiSceneStatus('待機中');
+  syncPresetBaseFromControls();
 
   updateAdjustmentControlState();
   updateWhiteBalanceControlState();
@@ -1381,6 +1368,13 @@ function resetSettings() {
   applyPreviewAspect();
   applyZoom(currentZoom);
   saveSettings();
+}
+
+function syncPresetBaseFromControls() {
+  presetBaseBrightness = Number(brightnessRange.value) || 100;
+  presetBaseContrast = Number(contrastRange.value) || 100;
+  presetBaseTemperature = Number(temperatureRange.value) || 0;
+  presetBaseTint = Number(tintRange.value) || 0;
 }
 
 function applyPreset(presetName) {
@@ -1398,6 +1392,7 @@ function applyPreset(presetName) {
   tintRange.value = preset.tint;
 
   guideOpacityRange.value = preset.guideOpacity;
+  syncPresetBaseFromControls();
 
   updateAdjustmentControlState();
   updateWhiteBalanceControlState();
@@ -1429,6 +1424,11 @@ function updateWhiteBalanceLabels() {
 
   previewTemperature = temp;
   previewTint = tint;
+
+  if (!isWhiteBalanceAuto()) {
+    presetBaseTemperature = temp;
+    presetBaseTint = tint;
+  }
 
   if (isWhiteBalanceAuto()) {
     whiteBalanceValue.textContent = `自動`;
@@ -1569,10 +1569,12 @@ function updateAdjustmentControlState() {
 function updatePreviewFilter() {
   if (!isBrightnessAuto()) {
     previewBrightness = Number(brightnessRange.value);
+    presetBaseBrightness = previewBrightness;
   }
 
   if (!isContrastAuto()) {
     previewContrast = Number(contrastRange.value);
+    presetBaseContrast = previewContrast;
   }
 
   setPreviewFilter(previewBrightness, previewContrast);
@@ -1714,14 +1716,15 @@ function detectAiScene(metrics) {
 function applyWhiteBalanceFromMetrics(metrics, aiCorrection) {
   if (!isWhiteBalanceAuto() || !metrics) return;
 
-  const baseTemp = Math.round((metrics.bMean - metrics.rMean) * 0.28);
-  const baseTint = Math.round(((metrics.rMean + metrics.bMean) / 2 - metrics.gMean) * 0.18);
+  // プリセットを初期値として使い、映像解析とAI判定は弱めの微調整に留める。
+  const sceneTemp = Math.round((metrics.bMean - metrics.rMean) * 0.10);
+  const sceneTint = Math.round(((metrics.rMean + metrics.bMean) / 2 - metrics.gMean) * 0.08);
 
-  const aiTemp = aiCorrection ? aiCorrection.temperature : 0;
-  const aiTint = aiCorrection ? aiCorrection.tint : 0;
+  const aiTemp = aiCorrection ? aiCorrection.temperature * 0.45 : 0;
+  const aiTint = aiCorrection ? aiCorrection.tint * 0.45 : 0;
 
-  temperatureRange.value = clampValue(baseTemp + aiTemp, -45, 45);
-  tintRange.value = clampValue(baseTint + aiTint, -35, 35);
+  temperatureRange.value = clampValue(presetBaseTemperature + sceneTemp + aiTemp, -45, 45);
+  tintRange.value = clampValue(presetBaseTint + sceneTint + aiTint, -35, 35);
   updateWhiteBalanceLabels();
 }
 
@@ -1737,21 +1740,23 @@ function runAutoAdjustment() {
       ? detectAiScene(metrics)
       : { label: 'OFF', brightness: 0, contrast: 0, temperature: 0, tint: 0 };
 
+    // プリセットを初期値として使う。明るさ/コントラストの自動補正とAI補正は弱めに加算。
     const baseBrightness = isBrightnessAuto()
-      ? clampValue(100 + (128 - metrics.mean) * 0.45, 65, 140)
+      ? clampValue(presetBaseBrightness + (128 - metrics.mean) * 0.25, 65, 140)
       : previewBrightness;
 
     const baseContrast = isContrastAuto()
-      ? clampValue(100 + (52 - metrics.stdDev) * 0.65, 75, 135)
+      ? clampValue(presetBaseContrast + (52 - metrics.stdDev) * 0.35, 75, 135)
       : previewContrast;
 
-    const nextBrightness = clampValue(baseBrightness + aiCorrection.brightness, 60, 145);
-    const nextContrast = clampValue(baseContrast + aiCorrection.contrast, 70, 140);
+    const aiStrength = 0.45;
+    const nextBrightness = clampValue(baseBrightness + aiCorrection.brightness * aiStrength, 60, 145);
+    const nextContrast = clampValue(baseContrast + aiCorrection.contrast * aiStrength, 70, 140);
 
     applyWhiteBalanceFromMetrics(metrics, isAiSceneOn() ? aiCorrection : null);
 
     if (isAiSceneOn()) {
-      setAiSceneStatus(`判定: ${aiCorrection.label}`);
+      setAiSceneStatus(`判定: ${aiCorrection.label} / プリセット基準`);
     } else {
       setAiSceneStatus('OFF');
     }
@@ -2322,7 +2327,6 @@ function captureFromCamera() {
     holder.classList.add('camera-on');
     btnShot.disabled = false;
 
-    handleAutoSave(current);
   } catch (error) {
     console.error(error);
     alert('撮影に失敗しました: ' + (error.message || error));
@@ -2513,10 +2517,6 @@ tintRange.addEventListener('input', () => {
 });
 guideOpacityRange.addEventListener('input', updateGuideOpacity);
 
-if (autoSaveMode) {
-  autoSaveMode.addEventListener('change', saveSettings);
-}
-
 if (aiSceneMode) {
   aiSceneMode.addEventListener('change', () => {
     saveSettings();
@@ -2582,6 +2582,7 @@ document.addEventListener('fullscreenchange', () => {
 });
 
 loadSettings();
+syncPresetBaseFromControls();
 applyPreviewAspect();
 updateWhiteBalanceControlState();
 updateGuideOpacity();
