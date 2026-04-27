@@ -1,4 +1,4 @@
-const CACHE_NAME = 'pscamera-pwa-v9-ai-priority-preset';
+const CACHE_NAME = 'pscamera-pwa-v10-color-enhance';
 const APP_SHELL = [
   './',
   './index.html',
