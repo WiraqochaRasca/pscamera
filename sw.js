@@ -1,4 +1,4 @@
-const CACHE_NAME = 'pokestop-camera-pwa-v2-continuous-level';
+const CACHE_NAME = 'pokestop-camera-pwa-v3-level-fix';
 const APP_SHELL = [
   './',
   './index.html',

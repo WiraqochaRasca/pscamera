@@ -341,7 +341,8 @@
       inset: 0;
       transform: rotate(var(--level-roll-angle, 0deg));
       transform-origin: center center;
-      transition: transform .08s linear;
+      transition: transform .04s linear;
+      will-change: transform;
     }
 
     .level-bar {
@@ -803,7 +804,7 @@
 
       <div class="footer">
         <span>PC: 矢印キーで切替 / スマホ: スワイプ</span>
-        <span>v1.05-continuous-level</span>
+        <span>v1.06-level-fix</span>
       </div>
     </div>
   </div>
@@ -826,8 +827,12 @@ let hardwareZoomSupported = false;
 let minZoom = 1;
 let maxZoom = 4;
 let zoomStep = 0.1;
-let levelGuideStatus = '水平線: 固定表示';
+let levelGuideStatus = '水準器: 固定表示';
 let levelGuideActive = false;
+let levelMotionActive = false;
+let levelOrientationActive = false;
+let lastMotionLevelAt = 0;
+let lastLevelRoll = 0;
 let autoAdjustTimer = null;
 const autoAdjustCanvas = document.createElement('canvas');
 const autoAdjustCtx = autoAdjustCanvas.getContext('2d', { willReadFrequently: true });
@@ -1329,6 +1334,17 @@ async function refocusAtPoint(x, y) {
   await refocus();
 }
 
+function normalizeDeg(deg) {
+  let value = ((deg + 180) % 360 + 360) % 360 - 180;
+  if (value === -180) value = 180;
+  return value;
+}
+
+function nearestRightAngleDelta(deg) {
+  const nearest = Math.round(deg / 90) * 90;
+  return normalizeDeg(deg - nearest);
+}
+
 function getScreenAngle() {
   if (screen.orientation && typeof screen.orientation.angle === 'number') {
     return screen.orientation.angle;
@@ -1336,56 +1352,111 @@ function getScreenAngle() {
   return typeof window.orientation === 'number' ? window.orientation : 0;
 }
 
+function getRollFromMotion(event) {
+  const acc = event.accelerationIncludingGravity;
+  if (!acc) return null;
+
+  const x = Number(acc.x);
+  const y = Number(acc.y);
+
+  if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
+
+  // 画面内の重力方向だけを見る。縦持ち・横持ち・逆向きのどれでも、
+  // 最も近い 0/90/180/270 度の軸からのズレだけを水準器の傾きにする。
+  const planeStrength = Math.hypot(x, y);
+  if (planeStrength < 2.5) return null;
+
+  const rawAngle = Math.atan2(x, y) * 180 / Math.PI;
+  return nearestRightAngleDelta(rawAngle);
+}
+
 function getRollFromOrientation(event) {
-  const beta = typeof event.beta === 'number' ? event.beta : 0;
-  const gamma = typeof event.gamma === 'number' ? event.gamma : 0;
+  const beta = typeof event.beta === 'number' ? event.beta : null;
+  const gamma = typeof event.gamma === 'number' ? event.gamma : null;
   const rawAngle = getScreenAngle();
   const screenAngle = ((rawAngle % 360) + 360) % 360;
 
-  // 縦向き/横向きの両方で、画面内の水平・垂直が自然に見えるように補正する。
-  if (screenAngle === 90) return beta;
-  if (screenAngle === 270) return -beta;
-  if (screenAngle === 180) return -gamma;
-  return gamma;
+  // fallback 用。DeviceMotion が取れないブラウザ向け。
+  // 横向きでは beta が ±90 付近になるため、±90 を基準に差分だけ使う。
+  if (screenAngle === 90 && beta !== null) return normalizeDeg(beta - 90);
+  if (screenAngle === 270 && beta !== null) return normalizeDeg(beta + 90);
+  if (screenAngle === 180 && gamma !== null) return normalizeDeg(-gamma);
+  if (gamma !== null) return normalizeDeg(gamma);
+  return 0;
 }
 
 function updateLevelLine(roll) {
   if (!levelCross || !Number.isFinite(roll)) return;
 
-  const clamped = Math.max(-45, Math.min(45, roll));
+  const normalized = normalizeDeg(roll);
+  const displayRoll = Math.max(-60, Math.min(60, normalized));
+  lastLevelRoll = displayRoll;
+
   // 中央の十字をスマホの傾きと逆向きに回し、水平・垂直の目安として使う。
-  holder.style.setProperty('--level-roll-angle', `${-clamped}deg`);
-  levelCross.classList.toggle('level-ok', Math.abs(clamped) < 1.5);
+  holder.style.setProperty('--level-roll-angle', `${-displayRoll}deg`);
+
+  // 縦向き・横向きのどちらでも、画面内の水平/垂直軸に近ければ緑。
+  levelCross.classList.toggle('level-ok', Math.abs(normalized) < 2.0);
+}
+
+function handleDeviceMotion(event) {
+  const roll = getRollFromMotion(event);
+  if (roll === null) return;
+
+  lastMotionLevelAt = Date.now();
+  updateLevelLine(roll);
 }
 
 function handleDeviceOrientation(event) {
+  // DeviceMotion の方が縦横どちらにも強いので、取れている間は fallback を使わない。
+  if (Date.now() - lastMotionLevelAt < 1000) return;
   updateLevelLine(getRollFromOrientation(event));
 }
 
+async function requestSensorPermissionIfNeeded(EventClass) {
+  if (EventClass && typeof EventClass.requestPermission === 'function') {
+    const permission = await EventClass.requestPermission();
+    return permission === 'granted';
+  }
+  return true;
+}
+
 async function enableLevelGuide() {
-  if (!window.DeviceOrientationEvent) {
-    levelGuideStatus = '水平線: 固定表示';
-    return;
+  let motionOK = false;
+  let orientationOK = false;
+
+  try {
+    if (window.DeviceMotionEvent) {
+      motionOK = await requestSensorPermissionIfNeeded(DeviceMotionEvent);
+      if (motionOK && !levelMotionActive) {
+        window.addEventListener('devicemotion', handleDeviceMotion, true);
+        levelMotionActive = true;
+      }
+    }
+  } catch (error) {
+    console.warn('device motion failed', error);
   }
 
   try {
-    if (typeof DeviceOrientationEvent.requestPermission === 'function') {
-      const permission = await DeviceOrientationEvent.requestPermission();
-      if (permission !== 'granted') {
-        levelGuideStatus = '水平線: 許可なし';
-        return;
+    if (window.DeviceOrientationEvent) {
+      orientationOK = await requestSensorPermissionIfNeeded(DeviceOrientationEvent);
+      if (orientationOK && !levelOrientationActive) {
+        window.addEventListener('deviceorientation', handleDeviceOrientation, true);
+        levelOrientationActive = true;
       }
     }
-
-    if (!levelGuideActive) {
-      window.addEventListener('deviceorientation', handleDeviceOrientation, true);
-      levelGuideActive = true;
-    }
-
-    levelGuideStatus = '水平線: 傾き対応';
   } catch (error) {
     console.warn('device orientation failed', error);
-    levelGuideStatus = '水平線: 固定表示';
+  }
+
+  levelGuideActive = levelMotionActive || levelOrientationActive;
+
+  if (levelMotionActive) {
+    levelGuideStatus = '水準器: 傾き対応';
+  } else if (levelOrientationActive) {
+    levelGuideStatus = '水準器: 簡易傾き対応';
+  } else {
+    levelGuideStatus = '水準器: 固定表示';
   }
 }
 
@@ -1461,6 +1532,8 @@ function stopCamera() {
   if (btnZoomReset) btnZoomReset.disabled = true;
   holder.style.setProperty('--digital-zoom', '1');
   holder.style.setProperty('--level-roll-angle', '0deg');
+  lastMotionLevelAt = 0;
+  lastLevelRoll = 0;
   if (levelCross) levelCross.classList.remove('level-ok');
   focusModeSelect.disabled = true;
   focusRange.disabled = true;
