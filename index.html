@@ -1048,9 +1048,25 @@
             <option value="manual">手動</option>
           </select>
           <input type="range" id="focusRange" min="0" max="1" step="0.01" value="0" disabled>
+        </div>
+
+        <label>
+          タップAF/AE
+          <div class="adjustment-row">
+            <select id="exposureModeSelect" class="adjustment-mode" disabled>
+              <option value="auto">自動</option>
+              <option value="manual">手動固定</option>
+            </select>
+            <span id="tapAeStatus">待機中</span>
+          </div>
+          <span class="setting-note">画面をタップした位置を pointsOfInterest に指定し、対応端末ではピントと露出を合わせます。</span>
+        </label>
+
+        <label>
+          露出補正
           <input type="range" id="exposureRange" min="0" max="0" step="1" value="0" disabled>
           <span id="exposureValue">非対応</span>
-        </div>
+        </label>
 
         <button class="camera-btn" id="btn-refocus" disabled>フォーカス再調整</button>
 
@@ -1061,7 +1077,7 @@
 
       <div class="footer">
         <span>PC: 矢印キーで切替 / スマホ: スワイプ</span>
-        <span>v1.18-shooting-tools</span>
+        <span>v1.19-tap-af-ae</span>
       </div>
     </div>
   </div>
@@ -1102,7 +1118,7 @@ const autoAdjustCanvas = document.createElement('canvas');
 const autoAdjustCtx = autoAdjustCanvas.getContext('2d', { willReadFrequently: true });
 
 const OUTPUT_SIZE = 3072;
-const SETTINGS_KEY = 'pokestopCameraSettings.v10';
+const SETTINGS_KEY = 'pokestopCameraSettings.v11';
 const PRESETS = {
   standard: {
     name: '標準',
@@ -1233,8 +1249,10 @@ const aspectSelect = document.getElementById('aspectSelect');
 const focusModeSelect = document.getElementById('focusModeSelect');
 const focusRange = document.getElementById('focusRange');
 const btnRefocus = document.getElementById('btn-refocus');
+const exposureModeSelect = document.getElementById('exposureModeSelect');
 const exposureRange = document.getElementById('exposureRange');
 const exposureValue = document.getElementById('exposureValue');
+const tapAeStatus = document.getElementById('tapAeStatus');
 const cameraSupportNote = document.getElementById('cameraSupportNote');
 const focusMarker = document.getElementById('focusMarker');
 const levelCross = document.getElementById('levelCross');
@@ -2006,6 +2024,35 @@ function setupCameraControls() {
     focusRange.disabled = true;
   }
 
+  if (cameraCapabilities.exposureMode && cameraCapabilities.exposureMode.length) {
+    exposureModeSelect.innerHTML = '';
+
+    cameraCapabilities.exposureMode.forEach(mode => {
+      const option = document.createElement('option');
+      option.value = mode;
+      option.textContent =
+        mode === 'manual' ? '手動固定' :
+        mode === 'continuous' ? '自動' :
+        mode === 'none' ? 'なし' :
+        mode;
+      exposureModeSelect.appendChild(option);
+    });
+
+    const preferredExposureMode = cameraCapabilities.exposureMode.includes('manual')
+      ? 'manual'
+      : cameraCapabilities.exposureMode.includes('continuous')
+        ? 'continuous'
+        : cameraCapabilities.exposureMode[0];
+
+    exposureModeSelect.value = preferredExposureMode;
+    exposureModeSelect.disabled = false;
+    notes.push(cameraCapabilities.exposureMode.includes('manual') ? '露出モード: 手動対応' : '露出モード: 自動のみ');
+  } else {
+    exposureModeSelect.disabled = true;
+    exposureModeSelect.value = 'auto';
+    notes.push('露出モード: 非対応');
+  }
+
   if (cameraCapabilities.exposureCompensation) {
     const cap = cameraCapabilities.exposureCompensation;
     exposureRange.min = cap.min;
@@ -2020,6 +2067,8 @@ function setupCameraControls() {
     exposureValue.textContent = '非対応';
     notes.push('露出補正: 非対応');
   }
+
+  tapAeStatus.textContent = cameraCapabilities.pointsOfInterest ? 'POI対応' : 'タップ可';
 
   notes.push(levelGuideStatus);
   notes.push('ホワイトバランス: ' + (isWhiteBalanceAuto() ? '自動' : '手動'));
@@ -2052,6 +2101,48 @@ async function applyZoom(value) {
     hardwareZoomSupported = false;
     holder.style.setProperty('--digital-zoom', zoom);
   }
+}
+
+function getTapPointFromHolder(x, y) {
+  const width = holder.clientWidth || 1;
+  const height = holder.clientHeight || 1;
+
+  return {
+    x: clampValue(x / width, 0, 1),
+    y: clampValue(y / height, 0, 1)
+  };
+}
+
+function getPreferredTapFocusMode() {
+  if (!cameraCapabilities.focusMode || !cameraCapabilities.focusMode.length) return null;
+
+  if (cameraCapabilities.focusMode.includes('single-shot')) return 'single-shot';
+  if (cameraCapabilities.focusMode.includes('continuous')) return 'continuous';
+
+  return cameraCapabilities.focusMode[0];
+}
+
+function getPreferredExposureMode() {
+  if (!cameraCapabilities.exposureMode || !cameraCapabilities.exposureMode.length) return null;
+
+  if (exposureModeSelect && exposureModeSelect.value === 'manual' && cameraCapabilities.exposureMode.includes('manual')) {
+    return 'manual';
+  }
+
+  if (cameraCapabilities.exposureMode.includes('manual')) return 'manual';
+  if (cameraCapabilities.exposureMode.includes('continuous')) return 'continuous';
+
+  return cameraCapabilities.exposureMode[0];
+}
+
+async function tryApplyAdvancedConstraint(advanced) {
+  if (!cameraTrack || !advanced || !Object.keys(advanced).length) return false;
+
+  await cameraTrack.applyConstraints({
+    advanced: [advanced]
+  });
+
+  return true;
 }
 
 async function applyFocusMode(mode, silent = false) {
@@ -2103,19 +2194,44 @@ async function refocus() {
   }
 }
 
+async function applyExposureMode(mode) {
+  if (!cameraTrack || !cameraCapabilities.exposureMode || !cameraCapabilities.exposureMode.includes(mode)) {
+    tapAeStatus.textContent = '露出モード非対応';
+    return false;
+  }
+
+  try {
+    await tryApplyAdvancedConstraint({ exposureMode: mode });
+    exposureModeSelect.value = mode;
+    tapAeStatus.textContent = mode === 'manual' ? 'AE手動固定' : 'AE自動';
+    return true;
+  } catch (error) {
+    console.warn('exposure mode failed', error);
+    tapAeStatus.textContent = '露出モード失敗';
+    return false;
+  }
+}
+
 async function applyExposureCompensation(value) {
   if (!cameraTrack || !cameraCapabilities.exposureCompensation) return;
 
   const exposure = Number(value);
   exposureValue.textContent = exposure.toFixed(2);
 
+  const advanced = { exposureCompensation: exposure };
+
+  if (cameraCapabilities.exposureMode && cameraCapabilities.exposureMode.includes('manual')) {
+    advanced.exposureMode = 'manual';
+    exposureModeSelect.value = 'manual';
+  }
+
   try {
-    await cameraTrack.applyConstraints({
-      advanced: [{ exposureCompensation: exposure }]
-    });
+    await tryApplyAdvancedConstraint(advanced);
+    tapAeStatus.textContent = '露出補正適用';
   } catch (error) {
     console.warn('exposure compensation failed', error);
     exposureValue.textContent = '失敗';
+    tapAeStatus.textContent = '露出補正失敗';
   }
 }
 
@@ -2130,7 +2246,50 @@ function showFocusMarker(x, y) {
 
 async function refocusAtPoint(x, y) {
   showFocusMarker(x, y);
-  await refocus();
+
+  if (!cameraTrack) return;
+
+  const point = getTapPointFromHolder(x, y);
+  const focusMode = getPreferredTapFocusMode();
+  const exposureMode = getPreferredExposureMode();
+  const exposure = Number(exposureRange.value);
+
+  const advanced = {
+    pointsOfInterest: [point]
+  };
+
+  if (focusMode) advanced.focusMode = focusMode;
+  if (exposureMode) advanced.exposureMode = exposureMode;
+  if (cameraCapabilities.exposureCompensation && Number.isFinite(exposure)) {
+    advanced.exposureCompensation = exposure;
+  }
+
+  try {
+    await tryApplyAdvancedConstraint(advanced);
+    if (exposureModeSelect && exposureMode) exposureModeSelect.value = exposureMode;
+    tapAeStatus.textContent = `AF/AE: ${Math.round(point.x * 100)}%, ${Math.round(point.y * 100)}%`;
+    return;
+  } catch (firstError) {
+    console.warn('tap AF/AE with pointsOfInterest failed, retrying without POI', firstError);
+  }
+
+  // pointsOfInterest非対応端末向けフォールバック
+  try {
+    const fallback = {};
+    if (focusMode) fallback.focusMode = focusMode;
+    if (exposureMode) fallback.exposureMode = exposureMode;
+    if (cameraCapabilities.exposureCompensation && Number.isFinite(exposure)) {
+      fallback.exposureCompensation = exposure;
+    }
+
+    await tryApplyAdvancedConstraint(fallback);
+    if (exposureModeSelect && exposureMode) exposureModeSelect.value = exposureMode;
+    tapAeStatus.textContent = 'AF/AE適用';
+  } catch (secondError) {
+    console.warn('tap AF/AE fallback failed', secondError);
+    tapAeStatus.textContent = 'AF/AE非対応';
+    await refocus();
+  }
 }
 
 function normalizeDeg(deg) {
@@ -2385,8 +2544,10 @@ function stopCamera() {
   focusModeSelect.disabled = true;
   focusRange.disabled = true;
   btnRefocus.disabled = true;
+  if (exposureModeSelect) exposureModeSelect.disabled = true;
   exposureRange.disabled = true;
   exposureValue.textContent = '非対応';
+  if (tapAeStatus) tapAeStatus.textContent = '待機中';
   setAiSceneStatus(isAiSceneOn() ? '待機中' : 'OFF');
 }
 
@@ -2685,6 +2846,9 @@ if (btnZoomReset) {
 focusModeSelect.addEventListener('change', () => applyFocusMode(focusModeSelect.value));
 focusRange.addEventListener('input', () => applyFocusDistance(focusRange.value));
 btnRefocus.addEventListener('click', refocus);
+if (exposureModeSelect) {
+  exposureModeSelect.addEventListener('change', () => applyExposureMode(exposureModeSelect.value));
+}
 exposureRange.addEventListener('input', () => applyExposureCompensation(exposureRange.value));
 
 holder.addEventListener('click', event => {
