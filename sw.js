@@ -1,4 +1,4 @@
-const CACHE_NAME = 'pscamera-pwa-v12-frame-controls';
+const CACHE_NAME = 'pscamera-pwa-v13-transparent-stage';
 const APP_SHELL = [
   './',
   './index.html',

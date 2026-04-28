@@ -22,6 +22,7 @@
       --guide-opacity: 1;
       --frame-opacity: 1;
       --shooting-frame-opacity: .2;
+      --stage-blue-opacity: 1;
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -142,7 +143,7 @@
     }
 
     .stage {
-      background: var(--pokestop-blue);
+      background: rgba(48, 190, 240, var(--stage-blue-opacity));
       padding: 2.5rem 2rem;
       display: flex;
       flex-direction: column;
@@ -150,7 +151,16 @@
       position: relative;
       user-select: none;
       touch-action: pan-y;
-      transition: background 0.3s;
+      transition: background .25s, background-color .25s;
+    }
+
+    .stage.camera-active {
+      --stage-blue-opacity: .08;
+    }
+
+    body.shooting-mode .stage.camera-active {
+      --stage-blue-opacity: 0;
+      background: transparent;
     }
 
     .stage.drag-over {
@@ -1020,7 +1030,7 @@
 
       <div class="footer">
         <span>PC: 矢印キーで切替 / スマホ: スワイプ</span>
-        <span>v1.16-frame-controls</span>
+        <span>v1.17-transparent-stage</span>
       </div>
     </div>
   </div>
@@ -1064,7 +1074,7 @@ const autoAdjustCanvas = document.createElement('canvas');
 const autoAdjustCtx = autoAdjustCanvas.getContext('2d', { willReadFrequently: true });
 
 const OUTPUT_SIZE = 3072;
-const SETTINGS_KEY = 'pokestopCameraSettings.v8';
+const SETTINGS_KEY = 'pokestopCameraSettings.v9';
 const PRESETS = {
   standard: {
     name: '標準',
@@ -2336,6 +2346,7 @@ async function startCamera() {
     await cameraVideo.play();
 
     holder.classList.add('camera-on');
+    stage.classList.add('camera-active');
     setupCameraControls();
     updateWhiteBalanceControlState();
     updateGuideOpacity();
@@ -2367,6 +2378,7 @@ function stopCamera() {
 
   cameraVideo.srcObject = null;
   holder.classList.remove('camera-on');
+  stage.classList.remove('camera-active');
 
   btnCamera.textContent = '📷 カメラ起動';
   btnShot.disabled = true;
@@ -2463,6 +2475,7 @@ function captureFromCamera() {
     // 連続撮影できるように、撮影後もカメラは止めない。
     render();
     holder.classList.add('camera-on');
+    stage.classList.add('camera-active');
     btnShot.disabled = false;
 
   } catch (error) {
