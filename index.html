@@ -1063,6 +1063,18 @@
         </label>
 
         <label>
+          アプリ側 明るさ固定
+          <div class="preset-row">
+            <select id="appAeLockMode">
+              <option value="on" selected>ON：タップ位置で固定</option>
+              <option value="off">OFF</option>
+            </select>
+            <button class="camera-btn" id="btn-app-ae-unlock" type="button">固定解除</button>
+          </div>
+          <span id="appAeLockStatus" class="setting-note">未固定</span>
+        </label>
+
+        <label>
           露出補正
           <input type="range" id="exposureRange" min="0" max="0" step="1" value="0" disabled>
           <span id="exposureValue">非対応</span>
@@ -1077,7 +1089,7 @@
 
       <div class="footer">
         <span>PC: 矢印キーで切替 / スマホ: スワイプ</span>
-        <span>v1.19-tap-af-ae</span>
+        <span>v1.20-app-ae-lock</span>
       </div>
     </div>
   </div>
@@ -1095,6 +1107,8 @@ let lastCameraShotIndex = -1;
 
 let previewBrightness = 100;
 let previewContrast = 100;
+let appAeBrightnessLocked = false;
+let appAeLockedBrightness = null;
 let previewTemperature = -8;
 let previewTint = 0;
 let presetBaseBrightness = 100;
@@ -1118,7 +1132,7 @@ const autoAdjustCanvas = document.createElement('canvas');
 const autoAdjustCtx = autoAdjustCanvas.getContext('2d', { willReadFrequently: true });
 
 const OUTPUT_SIZE = 3072;
-const SETTINGS_KEY = 'pokestopCameraSettings.v11';
+const SETTINGS_KEY = 'pokestopCameraSettings.v12';
 const PRESETS = {
   standard: {
     name: '標準',
@@ -1250,6 +1264,9 @@ const focusModeSelect = document.getElementById('focusModeSelect');
 const focusRange = document.getElementById('focusRange');
 const btnRefocus = document.getElementById('btn-refocus');
 const exposureModeSelect = document.getElementById('exposureModeSelect');
+const appAeLockMode = document.getElementById('appAeLockMode');
+const btnAppAeUnlock = document.getElementById('btn-app-ae-unlock');
+const appAeLockStatus = document.getElementById('appAeLockStatus');
 const exposureRange = document.getElementById('exposureRange');
 const exposureValue = document.getElementById('exposureValue');
 const tapAeStatus = document.getElementById('tapAeStatus');
@@ -1409,7 +1426,8 @@ function getAppSettings() {
     guideOpacity: Number(guideOpacityRange.value),
     aspect: aspectSelect.value,
     zoom: Number(currentZoom) || 1,
-    aiSceneMode: aiSceneMode ? aiSceneMode.value : 'on'
+    aiSceneMode: aiSceneMode ? aiSceneMode.value : 'on',
+    appAeLockMode: appAeLockMode ? appAeLockMode.value : 'on'
   };
 }
 
@@ -1442,6 +1460,7 @@ function loadSettings() {
     if (settings.aspect) aspectSelect.value = settings.aspect;
     if (Number.isFinite(Number(settings.zoom))) currentZoom = Number(settings.zoom);
     if (aiSceneMode && settings.aiSceneMode) aiSceneMode.value = settings.aiSceneMode;
+    if (appAeLockMode && settings.appAeLockMode) appAeLockMode.value = settings.appAeLockMode;
   } catch (error) {
     console.warn('settings load failed', error);
   }
@@ -1465,6 +1484,8 @@ function resetSettings() {
   aspectSelect.value = '1:1';
   currentZoom = minZoom || 1;
   if (aiSceneMode) aiSceneMode.value = 'on';
+  if (appAeLockMode) appAeLockMode.value = 'on';
+  unlockAppBrightness(false);
   setAiSceneStatus('待機中');
   syncPresetBaseFromControls();
 
@@ -1654,7 +1675,7 @@ function setPreviewFilter(brightness, contrast) {
 
   brightnessRange.value = previewBrightness;
   contrastRange.value = previewContrast;
-  brightnessValue.textContent = `${previewBrightness}%`;
+  brightnessValue.textContent = isAppBrightnessLocked() ? `固定 ${previewBrightness}%` : `${previewBrightness}%`;
   contrastValue.textContent = `${previewContrast}%`;
 
   holder.style.setProperty('--preview-brightness', `${previewBrightness}%`);
@@ -1883,28 +1904,34 @@ function runAutoAdjustment() {
     let baseBrightness;
     let baseContrast;
 
-    if (isAiSceneOn()) {
+    if (isAppBrightnessLocked()) {
+      // アプリ側AEロック中は、AIや自動明るさ補正でpreviewBrightnessを上書きしない。
+      baseBrightness = Number(appAeLockedBrightness);
+    } else if (isAiSceneOn()) {
       // AI優先: プリセットの明るさ/コントラスト補正を重ねない。
       baseBrightness = isBrightnessAuto()
         ? clampValue(base.brightness + (128 - metrics.mean) * 0.45, 60, 145)
         : previewBrightness;
-
-      baseContrast = isContrastAuto()
-        ? clampValue(base.contrast + (52 - metrics.stdDev) * 0.65, 70, 140)
-        : previewContrast;
     } else {
       // AI OFF: プリセットをベースにした従来の自動補正。
       baseBrightness = isBrightnessAuto()
         ? clampValue(base.brightness + (128 - metrics.mean) * 0.25, 65, 140)
         : previewBrightness;
+    }
 
+    if (isAiSceneOn()) {
+      baseContrast = isContrastAuto()
+        ? clampValue(base.contrast + (52 - metrics.stdDev) * 0.65, 70, 140)
+        : previewContrast;
+    } else {
       baseContrast = isContrastAuto()
         ? clampValue(base.contrast + (52 - metrics.stdDev) * 0.35, 75, 135)
         : previewContrast;
     }
 
     const aiStrength = isAiSceneOn() ? 0.85 : 0;
-    const nextBrightness = clampValue(baseBrightness + aiCorrection.brightness * aiStrength, 60, 145);
+    const brightnessAiBoost = isAppBrightnessLocked() ? 0 : aiCorrection.brightness * aiStrength;
+    const nextBrightness = clampValue(baseBrightness + brightnessAiBoost, 60, 145);
     const nextContrast = clampValue(baseContrast + aiCorrection.contrast * aiStrength, 70, 140);
 
     applyWhiteBalanceFromMetrics(metrics, isAiSceneOn() ? aiCorrection : null);
@@ -2069,6 +2096,8 @@ function setupCameraControls() {
   }
 
   tapAeStatus.textContent = cameraCapabilities.pointsOfInterest ? 'POI対応' : 'タップ可';
+  setAppAeLockStatus(isAppAeLockEnabled() ? '未固定' : 'OFF');
+  notes.push('アプリ側明るさ固定: 対応');
 
   notes.push(levelGuideStatus);
   notes.push('ホワイトバランス: ' + (isWhiteBalanceAuto() ? '自動' : '手動'));
@@ -2101,6 +2130,141 @@ async function applyZoom(value) {
     hardwareZoomSupported = false;
     holder.style.setProperty('--digital-zoom', zoom);
   }
+}
+
+function isAppAeLockEnabled() {
+  return appAeLockMode && appAeLockMode.value === 'on';
+}
+
+function isAppBrightnessLocked() {
+  return isAppAeLockEnabled() && appAeBrightnessLocked && Number.isFinite(Number(appAeLockedBrightness));
+}
+
+function setAppAeLockStatus(message) {
+  if (appAeLockStatus) {
+    appAeLockStatus.textContent = message || '未固定';
+  }
+}
+
+function unlockAppBrightness(shouldSave = true) {
+  appAeBrightnessLocked = false;
+  appAeLockedBrightness = null;
+  setAppAeLockStatus(isAppAeLockEnabled() ? '未固定' : 'OFF');
+  setPreviewFilter(previewBrightness, previewContrast);
+  if (shouldSave) saveSettings();
+}
+
+function getVideoSourcePointFromHolder(x, y) {
+  const vw = cameraVideo.videoWidth;
+  const vh = cameraVideo.videoHeight;
+  const cw = holder.clientWidth || 1;
+  const ch = holder.clientHeight || 1;
+
+  if (!vw || !vh) return null;
+
+  const videoRatio = vw / vh;
+  const containerRatio = cw / ch;
+
+  let scale;
+  let offsetX = 0;
+  let offsetY = 0;
+
+  // CSS object-fit: cover の逆算
+  if (videoRatio > containerRatio) {
+    scale = ch / vh;
+    const renderedWidth = vw * scale;
+    offsetX = (cw - renderedWidth) / 2;
+  } else {
+    scale = cw / vw;
+    const renderedHeight = vh * scale;
+    offsetY = (ch - renderedHeight) / 2;
+  }
+
+  let sourceX = (x - offsetX) / scale;
+  let sourceY = (y - offsetY) / scale;
+
+  // CSSデジタルズーム時の逆算。カメラ側ズーム対応時は映像自体がズーム済み。
+  const digitalZoom = hardwareZoomSupported ? 1 : Math.max(1, currentZoom || 1);
+  if (digitalZoom > 1) {
+    sourceX = vw / 2 + (sourceX - vw / 2) / digitalZoom;
+    sourceY = vh / 2 + (sourceY - vh / 2) / digitalZoom;
+  }
+
+  return {
+    x: clampValue(sourceX, 0, vw),
+    y: clampValue(sourceY, 0, vh)
+  };
+}
+
+function analyzeTapLuminance(x, y) {
+  if (!cameraStream || !cameraVideo.videoWidth || !autoAdjustCtx) return null;
+
+  const sourcePoint = getVideoSourcePointFromHolder(x, y);
+  if (!sourcePoint) return null;
+
+  const vw = cameraVideo.videoWidth;
+  const vh = cameraVideo.videoHeight;
+  const cropSize = Math.max(24, Math.min(vw, vh) * 0.16);
+  const sx = clampValue(sourcePoint.x - cropSize / 2, 0, Math.max(0, vw - cropSize));
+  const sy = clampValue(sourcePoint.y - cropSize / 2, 0, Math.max(0, vh - cropSize));
+
+  const sampleSize = 48;
+  autoAdjustCanvas.width = sampleSize;
+  autoAdjustCanvas.height = sampleSize;
+
+  autoAdjustCtx.drawImage(cameraVideo, sx, sy, cropSize, cropSize, 0, 0, sampleSize, sampleSize);
+  const data = autoAdjustCtx.getImageData(0, 0, sampleSize, sampleSize).data;
+
+  let sum = 0;
+  let count = 0;
+  let dark = 0;
+  let bright = 0;
+
+  for (let i = 0; i < data.length; i += 4) {
+    const luminance = 0.2126 * data[i] + 0.7152 * data[i + 1] + 0.0722 * data[i + 2];
+    sum += luminance;
+    count += 1;
+    if (luminance < 45) dark += 1;
+    if (luminance > 220) bright += 1;
+  }
+
+  if (!count) return null;
+
+  return {
+    mean: sum / count,
+    darkRatio: dark / count,
+    brightRatio: bright / count
+  };
+}
+
+function lockBrightnessFromTap(x, y) {
+  if (!isAppAeLockEnabled()) {
+    setAppAeLockStatus('OFF');
+    return false;
+  }
+
+  const metrics = analyzeTapLuminance(x, y);
+  if (!metrics) {
+    setAppAeLockStatus('固定失敗');
+    return false;
+  }
+
+  const target = 128;
+  let nextBrightness = Math.round(100 * target / Math.max(1, metrics.mean));
+
+  // 白飛びが多い場合は少し暗め、黒つぶれが多い場合は少し明るめに寄せる
+  if (metrics.brightRatio > 0.20) nextBrightness -= 8;
+  if (metrics.darkRatio > 0.35) nextBrightness += 8;
+
+  nextBrightness = clampValue(nextBrightness, 55, 150);
+
+  appAeBrightnessLocked = true;
+  appAeLockedBrightness = nextBrightness;
+  setPreviewFilter(nextBrightness, previewContrast);
+  setAppAeLockStatus(`固定中 ${nextBrightness}%`);
+  saveSettings();
+
+  return true;
 }
 
 function getTapPointFromHolder(x, y) {
@@ -2246,6 +2410,7 @@ function showFocusMarker(x, y) {
 
 async function refocusAtPoint(x, y) {
   showFocusMarker(x, y);
+  lockBrightnessFromTap(x, y);
 
   if (!cameraTrack) return;
 
@@ -2548,6 +2713,7 @@ function stopCamera() {
   exposureRange.disabled = true;
   exposureValue.textContent = '非対応';
   if (tapAeStatus) tapAeStatus.textContent = '待機中';
+  unlockAppBrightness(false);
   setAiSceneStatus(isAiSceneOn() ? '待機中' : 'OFF');
 }
 
@@ -2846,6 +3012,22 @@ if (btnZoomReset) {
 focusModeSelect.addEventListener('change', () => applyFocusMode(focusModeSelect.value));
 focusRange.addEventListener('input', () => applyFocusDistance(focusRange.value));
 btnRefocus.addEventListener('click', refocus);
+if (appAeLockMode) {
+  appAeLockMode.addEventListener('change', () => {
+    if (!isAppAeLockEnabled()) {
+      unlockAppBrightness(false);
+      setAppAeLockStatus('OFF');
+    } else {
+      setAppAeLockStatus('未固定');
+    }
+    saveSettings();
+  });
+}
+
+if (btnAppAeUnlock) {
+  btnAppAeUnlock.addEventListener('click', () => unlockAppBrightness(true));
+}
+
 if (exposureModeSelect) {
   exposureModeSelect.addEventListener('change', () => applyExposureMode(exposureModeSelect.value));
 }
