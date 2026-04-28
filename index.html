@@ -212,8 +212,8 @@
     .ring-1 { width: 282px; height: 282px; border: 2.5px solid #fff; }
     .ring-2 { width: 302px; height: 302px; border: 1px solid rgba(255,255,255,.3); }
 
-    /* ■モードでも●の枠は表示し続ける */
-    .mode-gift .ring { opacity: 1; }
+    /* 外側リングは●モード用。一番内側の●は inner-disk-guide で別表示する */
+    .mode-gift .ring { opacity: 0; }
     .mode-disk .ring { opacity: 1; }
 
     .holder {
@@ -231,6 +231,22 @@
 
     .mode-disk .holder { border-radius: 50%; }
     .mode-gift .holder { border-radius: 0; }
+
+    .inner-disk-guide {
+      position: absolute;
+      inset: 0;
+      border: 3px solid #fff;
+      border-radius: 50%;
+      pointer-events: none;
+      z-index: 5;
+      display: none;
+      box-shadow: 0 0 2px rgba(0,0,0,.35);
+    }
+
+    /* ■モード時も、ユーザー指定の一番内側の●枠だけ表示する */
+    .mode-gift .inner-disk-guide {
+      display: block;
+    }
 
     .holder img {
       position: absolute;
@@ -806,6 +822,7 @@
 
         <div class="holder" id="holder">
           <video id="cameraVideo" class="camera-video" autoplay playsinline muted></video>
+          <div class="inner-disk-guide" aria-hidden="true"></div>
 
           <div class="camera-guide" id="cameraGuide">
             <div class="guide-line guide-line-v"></div>
@@ -1019,7 +1036,7 @@
 
       <div class="footer">
         <span>PC: 矢印キーで切替 / スマホ: スワイプ</span>
-        <span>v1.16-shooting-mode-ui</span>
+        <span>v1.17-inner-circle-guide</span>
       </div>
     </div>
   </div>
@@ -1060,7 +1077,7 @@ const autoAdjustCanvas = document.createElement('canvas');
 const autoAdjustCtx = autoAdjustCanvas.getContext('2d', { willReadFrequently: true });
 
 const OUTPUT_SIZE = 3072;
-const SETTINGS_KEY = 'pokestopCameraSettings.v8';
+const SETTINGS_KEY = 'pokestopCameraSettings.v9';
 const PRESETS = {
   standard: {
     name: '標準',

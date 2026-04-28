@@ -1,4 +1,4 @@
-const CACHE_NAME = 'pscamera-pwa-v15-shooting-mode-ui';
+const CACHE_NAME = 'pscamera-pwa-v16-inner-circle-guide';
 const APP_SHELL = [
   './',
   './index.html',
