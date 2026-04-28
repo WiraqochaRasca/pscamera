@@ -20,9 +20,6 @@
       --preview-contrast: 100%;
       --digital-zoom: 1;
       --guide-opacity: 1;
-      --frame-opacity: 1;
-      --shooting-frame-opacity: .2;
-      --stage-blue-opacity: 1;
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -143,7 +140,7 @@
     }
 
     .stage {
-      background: rgba(48, 190, 240, var(--stage-blue-opacity));
+      background: var(--pokestop-blue);
       padding: 2.5rem 2rem;
       display: flex;
       flex-direction: column;
@@ -151,39 +148,7 @@
       position: relative;
       user-select: none;
       touch-action: pan-y;
-      transition: background .25s, background-color .25s;
-    }
-
-    .stage.camera-active {
-      --stage-blue-opacity: 0;
-      background: transparent;
-      padding: 0;
-    }
-
-    body.shooting-mode .stage.camera-active {
-      --stage-blue-opacity: 0;
-      background: transparent;
-      padding: 0;
-    }
-
-    .stage.camera-active .frame-wrap {
-      width: 100%;
-      max-width: 100%;
-      aspect-ratio: var(--camera-aspect);
-    }
-
-    .stage.camera-active .holder {
-      width: 100%;
-      height: 100%;
-      border-radius: 0 !important;
-      border-color: transparent;
-      box-shadow: none;
-      background: #000;
-    }
-
-    .stage.camera-active .camera-video,
-    .stage.camera-active .holder img {
-      object-fit: contain;
+      transition: background 0.3s;
     }
 
     .stage.drag-over {
@@ -226,35 +191,16 @@
 
     .ring {
       position: absolute;
-      left: 50%;
-      top: 50%;
-      transform: translate(-50%, -50%);
       border-radius: 50%;
       pointer-events: none;
-      transition: opacity .2s, border-color .2s;
+      transition: opacity .3s;
     }
 
-    .ring-1 {
-      width: 282px;
-      height: 282px;
-      border: 2.5px solid var(--pokestop-blue);
-      opacity: var(--frame-opacity);
-    }
-
-    .ring-2 {
-      width: 302px;
-      height: 302px;
-      border: 1px solid var(--pokestop-blue);
-      opacity: calc(var(--frame-opacity) * .35);
-    }
+    .ring-1 { width: 282px; height: 282px; border: 2.5px solid #fff; }
+    .ring-2 { width: 302px; height: 302px; border: 1px solid rgba(255,255,255,.3); }
 
     .mode-gift .ring { opacity: 0; }
-    .mode-disk .ring { opacity: var(--frame-opacity); }
-    body.frame-hidden .ring { opacity: 0 !important; }
-    body.shooting-mode .ring-1 { opacity: var(--shooting-frame-opacity); }
-    body.shooting-mode .ring-2 { opacity: calc(var(--shooting-frame-opacity) * .35); }
-    body.frame-flash .ring-1 { opacity: 1 !important; }
-    body.frame-flash .ring-2 { opacity: .45 !important; }
+    .mode-disk .ring { opacity: 1; }
 
     .holder {
       width: 260px;
@@ -265,21 +211,8 @@
       background: #000;
       flex-shrink: 0;
       transition: border-radius .3s, aspect-ratio .2s;
-      border: 3px solid rgba(48, 190, 240, var(--frame-opacity));
+      border: 3px solid #fff;
       box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-    }
-
-    body.frame-hidden .holder {
-      border-color: rgba(48, 190, 240, 0);
-    }
-
-    body.shooting-mode .holder {
-      border-color: rgba(48, 190, 240, var(--shooting-frame-opacity));
-    }
-
-    body.frame-flash .holder {
-      border-color: rgba(48, 190, 240, 1) !important;
-      box-shadow: 0 0 0 2px rgba(48, 190, 240, .22), 0 4px 15px rgba(0,0,0,0.1);
     }
 
     .mode-disk .holder { border-radius: 50%; }
@@ -717,7 +650,7 @@
 
     @media (min-width: 520px) {
       .utility-actions {
-        grid-template-columns: 1fr 1fr 1fr;
+        grid-template-columns: 1fr 1fr;
       }
 
       .image-management {
@@ -913,7 +846,6 @@
 
       <div class="utility-actions">
         <button class="camera-btn" id="btn-shooting-mode" type="button">撮影モード</button>
-        <button class="camera-btn" id="btn-frame-toggle" type="button">青枠 OFF</button>
         <button class="camera-btn" id="btn-reset-settings" type="button">設定リセット</button>
       </div>
 
@@ -1015,18 +947,6 @@
         </label>
 
         <label>
-          青枠濃度
-          <input type="range" id="frameOpacityRange" min="0" max="100" step="1" value="100">
-          <span id="frameOpacityValue">100%</span>
-        </label>
-
-        <label>
-          撮影モード時の青枠濃度
-          <input type="range" id="shootingFrameOpacityRange" min="0" max="100" step="1" value="20">
-          <span id="shootingFrameOpacityValue">20%</span>
-        </label>
-
-        <label>
           アスペクト比
           <select id="aspectSelect">
             <option value="1:1">1:1 正方形</option>
@@ -1056,7 +976,7 @@
 
       <div class="footer">
         <span>PC: 矢印キーで切替 / スマホ: スワイプ</span>
-        <span>v1.18-full-view-stage</span>
+        <span>v1.15-minimal-controls</span>
       </div>
     </div>
   </div>
@@ -1080,10 +1000,7 @@ let presetBaseBrightness = 100;
 let presetBaseContrast = 100;
 let presetBaseTemperature = -8;
 let presetBaseTint = 0;
-let guideOpacity = 100;
-let frameVisible = true;
-let frameOpacity = 100;
-let shootingFrameOpacity = 20;
+let guideOpacity = 45;
 let currentZoom = 1;
 let hardwareZoomSupported = false;
 let minZoom = 1;
@@ -1100,7 +1017,7 @@ const autoAdjustCanvas = document.createElement('canvas');
 const autoAdjustCtx = autoAdjustCanvas.getContext('2d', { willReadFrequently: true });
 
 const OUTPUT_SIZE = 3072;
-const SETTINGS_KEY = 'pokestopCameraSettings.v10';
+const SETTINGS_KEY = 'pokestopCameraSettings.v7';
 const PRESETS = {
   standard: {
     name: '標準',
@@ -1193,7 +1110,6 @@ const btnCamera = document.getElementById('btn-camera');
 const btnShot = document.getElementById('btn-shot');
 const btnSave = document.getElementById('btn-save');
 const btnShootingMode = document.getElementById('btn-shooting-mode');
-const btnFrameToggle = document.getElementById('btn-frame-toggle');
 const btnResetSettings = document.getElementById('btn-reset-settings');
 const btnDeleteCurrent = document.getElementById('btn-delete-current');
 const btnClearAll = document.getElementById('btn-clear-all');
@@ -1219,10 +1135,6 @@ const tintRange = document.getElementById('tintRange');
 const tintValue = document.getElementById('tintValue');
 const guideOpacityRange = document.getElementById('guideOpacityRange');
 const guideOpacityValue = document.getElementById('guideOpacityValue');
-const frameOpacityRange = document.getElementById('frameOpacityRange');
-const frameOpacityValue = document.getElementById('frameOpacityValue');
-const shootingFrameOpacityRange = document.getElementById('shootingFrameOpacityRange');
-const shootingFrameOpacityValue = document.getElementById('shootingFrameOpacityValue');
 const zoomRange = document.getElementById('zoomRange');
 const zoomValue = document.getElementById('zoomValue');
 const btnZoomOut = document.getElementById('btn-zoom-out');
@@ -1379,9 +1291,6 @@ function getAppSettings() {
     temperature: Number(temperatureRange.value),
     tint: Number(tintRange.value),
     guideOpacity: Number(guideOpacityRange.value),
-    frameVisible,
-    frameOpacity: Number(frameOpacityRange.value),
-    shootingFrameOpacity: Number(shootingFrameOpacityRange.value),
     aspect: aspectSelect.value,
     zoom: Number(currentZoom) || 1,
     aiSceneMode: aiSceneMode ? aiSceneMode.value : 'on'
@@ -1414,9 +1323,6 @@ function loadSettings() {
     if (Number.isFinite(Number(settings.tint))) tintRange.value = settings.tint;
 
     if (Number.isFinite(Number(settings.guideOpacity))) guideOpacityRange.value = settings.guideOpacity;
-    if (typeof settings.frameVisible === 'boolean') frameVisible = settings.frameVisible;
-    if (Number.isFinite(Number(settings.frameOpacity))) frameOpacityRange.value = settings.frameOpacity;
-    if (Number.isFinite(Number(settings.shootingFrameOpacity))) shootingFrameOpacityRange.value = settings.shootingFrameOpacity;
     if (settings.aspect) aspectSelect.value = settings.aspect;
     if (Number.isFinite(Number(settings.zoom))) currentZoom = Number(settings.zoom);
     if (aiSceneMode && settings.aiSceneMode) aiSceneMode.value = settings.aiSceneMode;
@@ -1440,9 +1346,6 @@ function resetSettings() {
   temperatureRange.value = -8;
   tintRange.value = 0;
   guideOpacityRange.value = 100;
-  frameVisible = true;
-  frameOpacityRange.value = 100;
-  shootingFrameOpacityRange.value = 20;
   aspectSelect.value = '1:1';
   currentZoom = minZoom || 1;
   if (aiSceneMode) aiSceneMode.value = 'on';
@@ -1561,43 +1464,6 @@ function updateGuideOpacity() {
   guideOpacityValue.textContent = `${Math.round(guideOpacity)}%`;
   holder.style.setProperty('--guide-opacity', String(guideOpacity / 100));
   saveSettings();
-}
-
-function updateFrameVisibilityButton() {
-  if (btnFrameToggle) {
-    btnFrameToggle.textContent = frameVisible ? '青枠 OFF' : '青枠 ON';
-  }
-}
-
-function updateFrameOpacity() {
-  frameOpacity = clampValue(Number(frameOpacityRange.value), 0, 100);
-  shootingFrameOpacity = clampValue(Number(shootingFrameOpacityRange.value), 0, 100);
-
-  frameOpacityRange.value = frameOpacity;
-  shootingFrameOpacityRange.value = shootingFrameOpacity;
-  frameOpacityValue.textContent = `${Math.round(frameOpacity)}%`;
-  shootingFrameOpacityValue.textContent = `${Math.round(shootingFrameOpacity)}%`;
-
-  holder.style.setProperty('--frame-opacity', String(frameOpacity / 100));
-  holder.style.setProperty('--shooting-frame-opacity', String(shootingFrameOpacity / 100));
-
-  document.body.classList.toggle('frame-hidden', !frameVisible);
-  updateFrameVisibilityButton();
-  saveSettings();
-}
-
-function toggleFrameVisibility() {
-  frameVisible = !frameVisible;
-  updateFrameOpacity();
-}
-
-function flashFrameForCapture() {
-  if (!frameVisible) return;
-
-  document.body.classList.add('frame-flash');
-  setTimeout(() => {
-    document.body.classList.remove('frame-flash');
-  }, 450);
 }
 
 function estimateWhiteBalanceFromVideo() {
@@ -2372,7 +2238,6 @@ async function startCamera() {
     await cameraVideo.play();
 
     holder.classList.add('camera-on');
-    stage.classList.add('camera-active');
     setupCameraControls();
     updateWhiteBalanceControlState();
     updateGuideOpacity();
@@ -2404,7 +2269,6 @@ function stopCamera() {
 
   cameraVideo.srcObject = null;
   holder.classList.remove('camera-on');
-  stage.classList.remove('camera-active');
 
   btnCamera.textContent = '📷 カメラ起動';
   btnShot.disabled = true;
@@ -2436,45 +2300,31 @@ function drawVideoCover(ctx, video, w, h) {
     throw new Error('カメラ映像の読み込みが完了していません。');
   }
 
-  // 青背景を使わず、選択中のアスペクト比の中にカメラ映像全体が入るようにする。
-  // アスペクト比が合わない場合は黒帯で余白を作り、映像は切り抜かない。
-  ctx.fillStyle = '#000';
-  ctx.fillRect(0, 0, w, h);
+  const videoRatio = vw / vh;
+  const canvasRatio = w / h;
 
   let sx = 0;
   let sy = 0;
   let sw = vw;
   let sh = vh;
 
-  const digitalZoom = hardwareZoomSupported ? 1 : Math.max(1, currentZoom || 1);
-  if (digitalZoom > 1) {
-    const zoomedSw = sw / digitalZoom;
-    const zoomedSh = sh / digitalZoom;
-    sx += (sw - zoomedSw) / 2;
-    sy += (sh - zoomedSh) / 2;
-    sw = zoomedSw;
-    sh = zoomedSh;
-  }
-
-  const sourceRatio = sw / sh;
-  const canvasRatio = w / h;
-
-  let dx = 0;
-  let dy = 0;
-  let dw = w;
-  let dh = h;
-
-  if (sourceRatio > canvasRatio) {
-    dw = w;
-    dh = w / sourceRatio;
-    dy = (h - dh) / 2;
+  if (videoRatio > canvasRatio) {
+    sw = vh * canvasRatio;
+    sx = (vw - sw) / 2;
   } else {
-    dh = h;
-    dw = h * sourceRatio;
-    dx = (w - dw) / 2;
+    sh = vw / canvasRatio;
+    sy = (vh - sh) / 2;
   }
 
-  ctx.drawImage(video, sx, sy, sw, sh, dx, dy, dw, dh);
+  const digitalZoom = hardwareZoomSupported ? 1 : Math.max(1, currentZoom || 1);
+  const zoomedSw = sw / digitalZoom;
+  const zoomedSh = sh / digitalZoom;
+  sx += (sw - zoomedSw) / 2;
+  sy += (sh - zoomedSh) / 2;
+  sw = zoomedSw;
+  sh = zoomedSh;
+
+  ctx.drawImage(video, sx, sy, sw, sh, 0, 0, w, h);
 }
 
 function captureFromCamera() {
@@ -2490,8 +2340,6 @@ function captureFromCamera() {
 
     captureCanvas.width = w;
     captureCanvas.height = h;
-
-    flashFrameForCapture();
 
     if (isAiSceneOn()) {
       runAutoAdjustment();
@@ -2515,7 +2363,6 @@ function captureFromCamera() {
     // 連続撮影できるように、撮影後もカメラは止めない。
     render();
     holder.classList.add('camera-on');
-    stage.classList.add('camera-active');
     btnShot.disabled = false;
 
   } catch (error) {
@@ -2707,8 +2554,6 @@ tintRange.addEventListener('input', () => {
   saveSettings();
 });
 guideOpacityRange.addEventListener('input', updateGuideOpacity);
-frameOpacityRange.addEventListener('input', updateFrameOpacity);
-shootingFrameOpacityRange.addEventListener('input', updateFrameOpacity);
 
 if (aiSceneMode) {
   aiSceneMode.addEventListener('change', () => {
@@ -2765,7 +2610,6 @@ btnDeleteCurrent.addEventListener('click', deleteCurrentImage);
 btnClearAll.addEventListener('click', clearAllImages);
 btnSaveAll.addEventListener('click', saveAllImages);
 btnShootingMode.addEventListener('click', toggleShootingMode);
-btnFrameToggle.addEventListener('click', toggleFrameVisibility);
 btnResetSettings.addEventListener('click', resetSettings);
 
 document.addEventListener('fullscreenchange', () => {
@@ -2780,7 +2624,6 @@ syncPresetBaseFromControls();
 applyPreviewAspect();
 updateWhiteBalanceControlState();
 updateGuideOpacity();
-updateFrameOpacity();
 updateAdjustmentControlState();
 render();
 </script>
