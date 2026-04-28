@@ -1,4 +1,4 @@
-const CACHE_NAME = 'pscamera-pwa-v21-clean-normal-ui';
+const CACHE_NAME = 'pscamera-pwa-v22-image-management';
 const APP_SHELL = [
   './',
   './index.html',

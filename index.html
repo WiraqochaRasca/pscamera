@@ -637,6 +637,11 @@
       content: '▲';
     }
 
+    .image-management-details .image-management {
+      grid-template-columns: 1fr;
+      gap: 8px;
+    }
+
     .camera-controls {
       display: grid;
       gap: 10px;
@@ -956,7 +961,6 @@
         <button class="camera-btn" id="btn-camera">📷 カメラ起動</button>
         <button class="camera-btn" id="btn-shooting-mode" type="button">撮影モード</button>
         <button class="camera-btn" id="btn-shot" disabled>この枠で撮影</button>
-        <button class="camera-btn" id="btn-save" disabled>保存/共有</button>
       </div>
 
       <div class="shooting-tools" aria-label="撮影モード用操作">
@@ -985,11 +989,15 @@
         <input type="file" id="fileInput" accept="image/*" multiple>
       </div>
 
-      <div class="image-management">
-        <button class="camera-btn" id="btn-save-all" type="button" disabled>全保存</button>
-        <button class="camera-btn" id="btn-clear-all" type="button" disabled>全削除</button>
-        <button class="camera-btn" id="btn-delete-current" type="button" disabled hidden>選択画像を削除</button>
-      </div>
+      <details class="camera-controls details-controls image-management-details">
+        <summary>画像管理</summary>
+        <div class="image-management">
+          <button class="camera-btn" id="btn-save" type="button" disabled>選択画像を保存/共有</button>
+          <button class="camera-btn" id="btn-delete-current" type="button" disabled>選択画像を削除</button>
+          <button class="camera-btn" id="btn-save-all" type="button" disabled>全保存</button>
+          <button class="camera-btn" id="btn-clear-all" type="button" disabled>全削除</button>
+        </div>
+      </details>
 
       <details class="camera-controls details-controls" id="cameraControls">
         <summary>詳細設定</summary>
@@ -1081,7 +1089,7 @@
 
       <div class="footer">
         <span>PC: 矢印キーで切替 / スマホ: スワイプ</span>
-        <span>v1.20-clean-normal-ui</span>
+        <span>v1.21-image-management</span>
       </div>
     </div>
   </div>
@@ -1122,7 +1130,7 @@ const autoAdjustCanvas = document.createElement('canvas');
 const autoAdjustCtx = autoAdjustCanvas.getContext('2d', { willReadFrequently: true });
 
 const OUTPUT_SIZE = 3072;
-const SETTINGS_KEY = 'pokestopCameraSettings.v13-clean-normal-ui';
+const SETTINGS_KEY = 'pokestopCameraSettings.v14-image-management';
 const PRESETS = {
   standard: {
     name: '標準',
