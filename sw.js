@@ -1,4 +1,4 @@
-const CACHE_NAME = 'pscamera-pwa-v19-app-ae-lock';
+const CACHE_NAME = 'pscamera-pwa-v17-shooting-tools';
 const APP_SHELL = [
   './',
   './index.html',
