@@ -598,6 +598,33 @@
       cursor: default;
     }
 
+    .details-controls {
+      gap: 12px;
+    }
+
+    .details-controls summary {
+      list-style: none;
+      cursor: pointer;
+      font-weight: 700;
+      padding: .25rem 0;
+    }
+
+    .details-controls summary::-webkit-details-marker {
+      display: none;
+    }
+
+    .details-controls summary::after {
+      content: '▼';
+      float: right;
+      color: var(--muted);
+      font-size: 12px;
+      margin-top: 2px;
+    }
+
+    .details-controls[open] summary::after {
+      content: '▲';
+    }
+
     .camera-controls {
       display: grid;
       gap: 10px;
@@ -701,7 +728,7 @@
       }
 
       .image-management {
-        grid-template-columns: 1fr 1fr 1fr;
+        grid-template-columns: 1fr 1fr;
       }
     }
 
@@ -737,6 +764,15 @@
 
     body.shooting-mode #btn-save {
       display: none !important;
+    }
+
+
+    body.shooting-mode #btn-shooting-mode {
+      order: 5;
+    }
+
+    body.shooting-mode .shooting-tools {
+      order: 3;
     }
 
     body.shooting-mode main {
@@ -888,13 +924,7 @@
     </div>
 
     <div class="controls">
-      <div class="thumbs" id="thumbs"></div>
-
-      <div class="image-management">
-        <button class="camera-btn" id="btn-delete-current" type="button" disabled>選択画像を削除</button>
-        <button class="camera-btn" id="btn-clear-all" type="button" disabled>全削除</button>
-        <button class="camera-btn" id="btn-save-all" type="button" disabled>全保存</button>
-      </div>
+      <div class="thumbs" id="thumbs" hidden></div>
 
       <div class="camera-zoom-panel">
         <label class="zoom-label">
@@ -912,6 +942,7 @@
 
       <div class="camera-actions">
         <button class="camera-btn" id="btn-camera">📷 カメラ起動</button>
+        <button class="camera-btn" id="btn-shooting-mode" type="button">撮影モード</button>
         <button class="camera-btn" id="btn-shot" disabled>この枠で撮影</button>
         <button class="camera-btn" id="btn-save" disabled>保存/共有</button>
       </div>
@@ -925,13 +956,8 @@
             <svg class="icon" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="1.5"/></svg>
           </button>
         </div>
-        <button class="camera-btn" id="btn-clear-all-shooting" type="button" disabled>全削除</button>
         <button class="camera-btn" id="btn-save-all-shooting" type="button" disabled>全保存</button>
-      </div>
-
-      <div class="utility-actions">
-        <button class="camera-btn" id="btn-shooting-mode" type="button">撮影モード</button>
-        <button class="camera-btn" id="btn-reset-settings" type="button">設定リセット</button>
+        <button class="camera-btn" id="btn-clear-all-shooting" type="button" disabled>全削除</button>
       </div>
 
       <div class="dropzone" id="dropzone">
@@ -947,89 +973,14 @@
         <input type="file" id="fileInput" accept="image/*" multiple>
       </div>
 
-      <div class="camera-controls" id="cameraControls">
-        <label>
-          設定プリセット
-          <div class="preset-row">
-            <select id="presetSelect">
-              <option value="standard">標準</option>
-              <option value="daylight">昼用</option>
-              <option value="evening">夕方・黄み補正</option>
-              <option value="night">夜用</option>
-              <option value="indoor">室内・黄み補正</option>
-              <option value="thin-guide">ガイド薄め</option>
-            </select>
-            <button class="camera-btn" id="btn-apply-preset" type="button">適用</button>
-          </div>
-          <span class="setting-note">撮影環境のベースを選びます。AIシーン強化はこの設定を基準に微調整します。</span>
-        </label>
+      <div class="image-management">
+        <button class="camera-btn" id="btn-save-all" type="button" disabled>全保存</button>
+        <button class="camera-btn" id="btn-clear-all" type="button" disabled>全削除</button>
+        <button class="camera-btn" id="btn-delete-current" type="button" disabled hidden>選択画像を削除</button>
+      </div>
 
-        <label>
-          AIシーン強化
-          <div class="preset-row">
-            <select id="aiSceneMode">
-              <option value="on" selected>ON：自動判定して補正</option>
-              <option value="off">OFF</option>
-            </select>
-            <span class="ai-scene-status" id="aiSceneStatus">待機中</span>
-          </div>
-          <span class="setting-note">ON時は明るさ・コントラスト・色味をAI優先にし、プリセットの色補正は重ねません。</span>
-        </label>
-
-        <label>
-          明るさ
-          <div class="adjustment-row">
-            <select id="brightnessMode" class="adjustment-mode">
-              <option value="auto" selected>自動</option>
-              <option value="manual">手動</option>
-            </select>
-            <span id="brightnessValue">100%</span>
-          </div>
-          <input type="range" id="brightnessRange" min="50" max="150" step="1" value="100" disabled>
-        </label>
-
-        <label>
-          コントラスト
-          <div class="adjustment-row">
-            <select id="contrastMode" class="adjustment-mode">
-              <option value="auto" selected>自動</option>
-              <option value="manual">手動</option>
-            </select>
-            <span id="contrastValue">100%</span>
-          </div>
-          <input type="range" id="contrastRange" min="50" max="150" step="1" value="100" disabled>
-        </label>
-
-
-        <label>
-          ホワイトバランス
-          <div class="adjustment-row">
-            <select id="whiteBalanceMode" class="adjustment-mode">
-              <option value="auto" selected>自動</option>
-              <option value="manual">手動</option>
-            </select>
-            <span id="whiteBalanceValue">自動</span>
-          </div>
-          <span class="setting-note">黄みが強い時は手動で「青め」に寄せてください。</span>
-        </label>
-
-        <label>
-          色温度補正
-          <input type="range" id="temperatureRange" min="-50" max="50" step="1" value="-8" disabled>
-          <span id="temperatureValue">青め -8</span>
-        </label>
-
-        <label>
-          色かぶり補正
-          <input type="range" id="tintRange" min="-50" max="50" step="1" value="0" disabled>
-          <span id="tintValue">0</span>
-        </label>
-
-        <label>
-          ガイド濃度
-          <input type="range" id="guideOpacityRange" min="0" max="100" step="1" value="100">
-          <span id="guideOpacityValue">100%</span>
-        </label>
+      <details class="camera-controls details-controls" id="cameraControls">
+        <summary>詳細設定</summary>
 
         <label>
           アスペクト比
@@ -1042,7 +993,53 @@
           </select>
         </label>
 
+        <label>
+          ガイド濃度
+          <input type="range" id="guideOpacityRange" min="0" max="100" step="1" value="100">
+          <span id="guideOpacityValue">100%</span>
+        </label>
+
         <div hidden>
+          <select id="presetSelect">
+            <option value="standard">標準</option>
+            <option value="daylight">昼用</option>
+            <option value="evening">夕方・黄み補正</option>
+            <option value="night">夜用</option>
+            <option value="indoor">室内・黄み補正</option>
+            <option value="thin-guide">ガイド薄め</option>
+          </select>
+          <button class="camera-btn" id="btn-apply-preset" type="button">適用</button>
+
+          <select id="aiSceneMode">
+            <option value="off" selected>OFF</option>
+            <option value="on">ON</option>
+          </select>
+          <span class="ai-scene-status" id="aiSceneStatus">OFF</span>
+
+          <select id="brightnessMode" class="adjustment-mode">
+            <option value="manual" selected>手動</option>
+            <option value="auto">自動</option>
+          </select>
+          <input type="range" id="brightnessRange" min="50" max="150" step="1" value="100">
+          <span id="brightnessValue">100%</span>
+
+          <select id="contrastMode" class="adjustment-mode">
+            <option value="manual" selected>手動</option>
+            <option value="auto">自動</option>
+          </select>
+          <input type="range" id="contrastRange" min="50" max="150" step="1" value="100">
+          <span id="contrastValue">100%</span>
+
+          <select id="whiteBalanceMode" class="adjustment-mode">
+            <option value="manual" selected>手動</option>
+            <option value="auto">自動</option>
+          </select>
+          <span id="whiteBalanceValue">0</span>
+          <input type="range" id="temperatureRange" min="-50" max="50" step="1" value="0">
+          <span id="temperatureValue">0</span>
+          <input type="range" id="tintRange" min="-50" max="50" step="1" value="0">
+          <span id="tintValue">0</span>
+
           <select id="focusModeSelect" disabled>
             <option value="continuous">自動</option>
             <option value="manual">手動</option>
@@ -1050,18 +1047,17 @@
           <input type="range" id="focusRange" min="0" max="1" step="0.01" value="0" disabled>
           <input type="range" id="exposureRange" min="0" max="0" step="1" value="0" disabled>
           <span id="exposureValue">非対応</span>
+          <button class="camera-btn" id="btn-refocus" disabled>フォーカス再調整</button>
+          <p class="camera-note" id="cameraSupportNote">カメラ起動後に対応機能を確認します。</p>
+          <button class="camera-btn" id="btn-reset-settings" type="button">設定リセット</button>
         </div>
-
-        <button class="camera-btn" id="btn-refocus" disabled>フォーカス再調整</button>
-
-        <p class="camera-note" id="cameraSupportNote">カメラ起動後に対応機能を確認します。</p>
-      </div>
+      </details>
 
       <canvas id="captureCanvas" hidden></canvas>
 
       <div class="footer">
         <span>PC: 矢印キーで切替 / スマホ: スワイプ</span>
-        <span>v1.18-shooting-tools</span>
+        <span>v1.19-simple-ui</span>
       </div>
     </div>
   </div>
@@ -1102,7 +1098,7 @@ const autoAdjustCanvas = document.createElement('canvas');
 const autoAdjustCtx = autoAdjustCanvas.getContext('2d', { willReadFrequently: true });
 
 const OUTPUT_SIZE = 3072;
-const SETTINGS_KEY = 'pokestopCameraSettings.v10';
+const SETTINGS_KEY = 'pokestopCameraSettings.v12-simple-ui';
 const PRESETS = {
   standard: {
     name: '標準',
@@ -1239,6 +1235,30 @@ const cameraSupportNote = document.getElementById('cameraSupportNote');
 const focusMarker = document.getElementById('focusMarker');
 const levelCross = document.getElementById('levelCross');
 const levelPitchBubble = document.getElementById('levelPitchBubble');
+
+
+function applySimpleCameraDefaults() {
+  if (aiSceneMode) aiSceneMode.value = 'off';
+
+  brightnessMode.value = 'manual';
+  brightnessRange.value = 100;
+  previewBrightness = 100;
+
+  contrastMode.value = 'manual';
+  contrastRange.value = 100;
+  previewContrast = 100;
+
+  whiteBalanceMode.value = 'manual';
+  temperatureRange.value = 0;
+  tintRange.value = 0;
+  previewTemperature = 0;
+  previewTint = 0;
+
+  syncPresetBaseFromControls();
+  updateWhiteBalanceLabels();
+  setPreviewFilter(100, 100);
+  setAiSceneStatus('OFF');
+}
 
 function setMode(mode) {
   body.classList.remove('mode-disk', 'mode-gift');
@@ -2722,6 +2742,7 @@ document.addEventListener('fullscreenchange', () => {
 });
 
 loadSettings();
+applySimpleCameraDefaults();
 syncPresetBaseFromControls();
 applyPreviewAspect();
 updateWhiteBalanceControlState();
