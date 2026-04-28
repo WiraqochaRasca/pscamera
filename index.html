@@ -124,6 +124,23 @@
       min-height: 44px;
     }
 
+    .shooting-tools {
+      display: none;
+      grid-template-columns: minmax(0, 1fr) auto auto;
+      gap: 8px;
+      align-items: stretch;
+    }
+
+    .shooting-tools .shooting-mode-switch {
+      min-width: 0;
+    }
+
+    .shooting-tools .camera-btn {
+      white-space: nowrap;
+      padding: .65rem .75rem;
+      min-width: 72px;
+    }
+
     .icon {
       width: 20px;
       height: 20px;
@@ -698,6 +715,10 @@
       display: none !important;
     }
 
+    body.shooting-mode .shooting-tools {
+      display: grid;
+    }
+
     body.shooting-mode .shooting-mode-switch {
       display: flex;
     }
@@ -895,13 +916,17 @@
         <button class="camera-btn" id="btn-save" disabled>保存/共有</button>
       </div>
 
-      <div class="shooting-mode-switch" aria-label="撮影モード用の枠切替">
-        <button class="mode-btn active" id="btn-disk-shooting" type="button" title="ディスクモード">
-          <svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/></svg>
-        </button>
-        <button class="mode-btn" id="btn-gift-shooting" type="button" title="ギフトモード">
-          <svg class="icon" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="1.5"/></svg>
-        </button>
+      <div class="shooting-tools" aria-label="撮影モード用操作">
+        <div class="shooting-mode-switch" aria-label="撮影モード用の枠切替">
+          <button class="mode-btn active" id="btn-disk-shooting" type="button" title="ディスクモード">
+            <svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/></svg>
+          </button>
+          <button class="mode-btn" id="btn-gift-shooting" type="button" title="ギフトモード">
+            <svg class="icon" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="1.5"/></svg>
+          </button>
+        </div>
+        <button class="camera-btn" id="btn-clear-all-shooting" type="button" disabled>全削除</button>
+        <button class="camera-btn" id="btn-save-all-shooting" type="button" disabled>全保存</button>
       </div>
 
       <div class="utility-actions">
@@ -1036,7 +1061,7 @@
 
       <div class="footer">
         <span>PC: 矢印キーで切替 / スマホ: スワイプ</span>
-        <span>v1.17-inner-circle-guide</span>
+        <span>v1.18-shooting-tools</span>
       </div>
     </div>
   </div>
@@ -1077,7 +1102,7 @@ const autoAdjustCanvas = document.createElement('canvas');
 const autoAdjustCtx = autoAdjustCanvas.getContext('2d', { willReadFrequently: true });
 
 const OUTPUT_SIZE = 3072;
-const SETTINGS_KEY = 'pokestopCameraSettings.v9';
+const SETTINGS_KEY = 'pokestopCameraSettings.v10';
 const PRESETS = {
   standard: {
     name: '標準',
@@ -1176,6 +1201,8 @@ const btnResetSettings = document.getElementById('btn-reset-settings');
 const btnDeleteCurrent = document.getElementById('btn-delete-current');
 const btnClearAll = document.getElementById('btn-clear-all');
 const btnSaveAll = document.getElementById('btn-save-all');
+const btnClearAllShooting = document.getElementById('btn-clear-all-shooting');
+const btnSaveAllShooting = document.getElementById('btn-save-all-shooting');
 const captureCanvas = document.getElementById('captureCanvas');
 
 const presetSelect = document.getElementById('presetSelect');
@@ -1241,6 +1268,8 @@ function render() {
     if (btnDeleteCurrent) btnDeleteCurrent.disabled = true;
     if (btnClearAll) btnClearAll.disabled = true;
     if (btnSaveAll) btnSaveAll.disabled = true;
+    if (btnClearAllShooting) btnClearAllShooting.disabled = true;
+    if (btnSaveAllShooting) btnSaveAllShooting.disabled = true;
     return;
   }
 
@@ -1281,6 +1310,8 @@ function render() {
   if (btnDeleteCurrent) btnDeleteCurrent.disabled = imgs.length === 0;
   if (btnClearAll) btnClearAll.disabled = imgs.length === 0;
   if (btnSaveAll) btnSaveAll.disabled = imgs.length === 0;
+  if (btnClearAllShooting) btnClearAllShooting.disabled = imgs.length === 0;
+  if (btnSaveAllShooting) btnSaveAllShooting.disabled = imgs.length === 0;
 }
 
 function go(direction) {
@@ -2678,6 +2709,8 @@ btnSave.addEventListener('click', saveCurrentImage);
 btnDeleteCurrent.addEventListener('click', deleteCurrentImage);
 btnClearAll.addEventListener('click', clearAllImages);
 btnSaveAll.addEventListener('click', saveAllImages);
+if (btnClearAllShooting) btnClearAllShooting.addEventListener('click', clearAllImages);
+if (btnSaveAllShooting) btnSaveAllShooting.addEventListener('click', saveAllImages);
 btnShootingMode.addEventListener('click', toggleShootingMode);
 btnResetSettings.addEventListener('click', resetSettings);
 
