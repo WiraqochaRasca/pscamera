@@ -45,6 +45,8 @@
       z-index: 100;
     }
 
+    body > header { display: none !important; }
+
     .logo {
       display: flex;
       align-items: center;
@@ -207,6 +209,7 @@
       transition: background 0.2s;
     }
 
+    .nav-btn { display: none !important; }
     .nav-btn:hover:not(:disabled) { background: rgba(0, 0, 0, 0.4); }
     .nav-btn:disabled { opacity: 0; cursor: default; }
     .nav-btn.prev { left: 10px; }
@@ -613,6 +616,15 @@
       display: none;
     }
 
+    .details-mode-switch {
+      width: 100%;
+    }
+
+    .details-mode-switch .mode-btn {
+      flex: 1;
+      min-height: 42px;
+    }
+
     .details-controls summary::after {
       content: '▼';
       float: right;
@@ -983,6 +995,18 @@
         <summary>詳細設定</summary>
 
         <label>
+          表示モード
+          <div class="mode-switch details-mode-switch" aria-label="詳細設定用の枠切替">
+            <button class="mode-btn active" id="btn-disk-details" type="button" title="ディスクモード">
+              <svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/></svg>
+            </button>
+            <button class="mode-btn" id="btn-gift-details" type="button" title="ギフトモード">
+              <svg class="icon" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="1.5"/></svg>
+            </button>
+          </div>
+        </label>
+
+        <label>
           アスペクト比
           <select id="aspectSelect">
             <option value="1:1">1:1 正方形</option>
@@ -1057,7 +1081,7 @@
 
       <div class="footer">
         <span>PC: 矢印キーで切替 / スマホ: スワイプ</span>
-        <span>v1.19-simple-ui</span>
+        <span>v1.20-clean-normal-ui</span>
       </div>
     </div>
   </div>
@@ -1098,7 +1122,7 @@ const autoAdjustCanvas = document.createElement('canvas');
 const autoAdjustCtx = autoAdjustCanvas.getContext('2d', { willReadFrequently: true });
 
 const OUTPUT_SIZE = 3072;
-const SETTINGS_KEY = 'pokestopCameraSettings.v12-simple-ui';
+const SETTINGS_KEY = 'pokestopCameraSettings.v13-clean-normal-ui';
 const PRESETS = {
   standard: {
     name: '標準',
@@ -1183,6 +1207,8 @@ const btnDisk = document.getElementById('btn-disk');
 const btnGift = document.getElementById('btn-gift');
 const btnDiskShooting = document.getElementById('btn-disk-shooting');
 const btnGiftShooting = document.getElementById('btn-gift-shooting');
+const btnDiskDetails = document.getElementById('btn-disk-details');
+const btnGiftDetails = document.getElementById('btn-gift-details');
 const btnGrid = document.getElementById('btn-grid-toggle');
 
 const grid3x3 = document.getElementById('grid-3x3');
@@ -1269,6 +1295,8 @@ function setMode(mode) {
 
   if (btnDiskShooting) btnDiskShooting.classList.toggle('active', mode === 'disk');
   if (btnGiftShooting) btnGiftShooting.classList.toggle('active', mode === 'gift');
+  if (btnDiskDetails) btnDiskDetails.classList.toggle('active', mode === 'disk');
+  if (btnGiftDetails) btnGiftDetails.classList.toggle('active', mode === 'gift');
 }
 
 function render() {
@@ -2614,6 +2642,8 @@ btnDisk.addEventListener('click', () => setMode('disk'));
 btnGift.addEventListener('click', () => setMode('gift'));
 if (btnDiskShooting) btnDiskShooting.addEventListener('click', () => setMode('disk'));
 if (btnGiftShooting) btnGiftShooting.addEventListener('click', () => setMode('gift'));
+if (btnDiskDetails) btnDiskDetails.addEventListener('click', () => setMode('disk'));
+if (btnGiftDetails) btnGiftDetails.addEventListener('click', () => setMode('gift'));
 
 btnGrid.addEventListener('click', () => {
   gridState = (gridState + 1) % 3;
