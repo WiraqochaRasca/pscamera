@@ -111,6 +111,19 @@
     .mode-btn:last-child { border-right: none; }
     .mode-btn.active { background: var(--orange); color: #fff; }
 
+    .shooting-mode-switch {
+      display: none;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      overflow: hidden;
+      background: var(--surface);
+    }
+
+    .shooting-mode-switch .mode-btn {
+      flex: 1;
+      min-height: 44px;
+    }
+
     .icon {
       width: 20px;
       height: 20px;
@@ -199,7 +212,8 @@
     .ring-1 { width: 282px; height: 282px; border: 2.5px solid #fff; }
     .ring-2 { width: 302px; height: 302px; border: 1px solid rgba(255,255,255,.3); }
 
-    .mode-gift .ring { opacity: 0; }
+    /* ■モードでも●の枠は表示し続ける */
+    .mode-gift .ring { opacity: 1; }
     .mode-disk .ring { opacity: 1; }
 
     .holder {
@@ -668,6 +682,26 @@
       display: none !important;
     }
 
+    body.shooting-mode .shooting-mode-switch {
+      display: flex;
+    }
+
+    body.shooting-mode .camera-actions {
+      grid-template-columns: 1fr !important;
+    }
+
+    body.shooting-mode #btn-shot {
+      order: 1;
+    }
+
+    body.shooting-mode #btn-camera {
+      order: 2;
+    }
+
+    body.shooting-mode #btn-save {
+      display: none !important;
+    }
+
     body.shooting-mode main {
       padding: .5rem;
       max-width: none;
@@ -844,6 +878,15 @@
         <button class="camera-btn" id="btn-save" disabled>保存/共有</button>
       </div>
 
+      <div class="shooting-mode-switch" aria-label="撮影モード用の枠切替">
+        <button class="mode-btn active" id="btn-disk-shooting" type="button" title="ディスクモード">
+          <svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/></svg>
+        </button>
+        <button class="mode-btn" id="btn-gift-shooting" type="button" title="ギフトモード">
+          <svg class="icon" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="1.5"/></svg>
+        </button>
+      </div>
+
       <div class="utility-actions">
         <button class="camera-btn" id="btn-shooting-mode" type="button">撮影モード</button>
         <button class="camera-btn" id="btn-reset-settings" type="button">設定リセット</button>
@@ -976,7 +1019,7 @@
 
       <div class="footer">
         <span>PC: 矢印キーで切替 / スマホ: スワイプ</span>
-        <span>v1.15-minimal-controls</span>
+        <span>v1.16-shooting-mode-ui</span>
       </div>
     </div>
   </div>
@@ -1017,7 +1060,7 @@ const autoAdjustCanvas = document.createElement('canvas');
 const autoAdjustCtx = autoAdjustCanvas.getContext('2d', { willReadFrequently: true });
 
 const OUTPUT_SIZE = 3072;
-const SETTINGS_KEY = 'pokestopCameraSettings.v7';
+const SETTINGS_KEY = 'pokestopCameraSettings.v8';
 const PRESETS = {
   standard: {
     name: '標準',
@@ -1100,6 +1143,8 @@ const dropzone = document.getElementById('dropzone');
 const fileInput = document.getElementById('fileInput');
 const btnDisk = document.getElementById('btn-disk');
 const btnGift = document.getElementById('btn-gift');
+const btnDiskShooting = document.getElementById('btn-disk-shooting');
+const btnGiftShooting = document.getElementById('btn-gift-shooting');
 const btnGrid = document.getElementById('btn-grid-toggle');
 
 const grid3x3 = document.getElementById('grid-3x3');
@@ -1152,9 +1197,14 @@ const levelCross = document.getElementById('levelCross');
 const levelPitchBubble = document.getElementById('levelPitchBubble');
 
 function setMode(mode) {
-  body.className = 'mode-' + mode;
+  body.classList.remove('mode-disk', 'mode-gift');
+  body.classList.add('mode-' + mode);
+
   btnDisk.classList.toggle('active', mode === 'disk');
   btnGift.classList.toggle('active', mode === 'gift');
+
+  if (btnDiskShooting) btnDiskShooting.classList.toggle('active', mode === 'disk');
+  if (btnGiftShooting) btnGiftShooting.classList.toggle('active', mode === 'gift');
 }
 
 function render() {
@@ -2494,6 +2544,8 @@ async function saveCurrentImage() {
 
 btnDisk.addEventListener('click', () => setMode('disk'));
 btnGift.addEventListener('click', () => setMode('gift'));
+if (btnDiskShooting) btnDiskShooting.addEventListener('click', () => setMode('disk'));
+if (btnGiftShooting) btnGiftShooting.addEventListener('click', () => setMode('gift'));
 
 btnGrid.addEventListener('click', () => {
   gridState = (gridState + 1) % 3;

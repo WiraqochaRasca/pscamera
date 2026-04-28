@@ -1,4 +1,4 @@
-const CACHE_NAME = 'pscamera-pwa-v11-minimal-controls';
+const CACHE_NAME = 'pscamera-pwa-v15-shooting-mode-ui';
 const APP_SHELL = [
   './',
   './index.html',
