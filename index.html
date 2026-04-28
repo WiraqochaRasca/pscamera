@@ -155,12 +155,35 @@
     }
 
     .stage.camera-active {
-      --stage-blue-opacity: .08;
+      --stage-blue-opacity: 0;
+      background: transparent;
+      padding: 0;
     }
 
     body.shooting-mode .stage.camera-active {
       --stage-blue-opacity: 0;
       background: transparent;
+      padding: 0;
+    }
+
+    .stage.camera-active .frame-wrap {
+      width: 100%;
+      max-width: 100%;
+      aspect-ratio: var(--camera-aspect);
+    }
+
+    .stage.camera-active .holder {
+      width: 100%;
+      height: 100%;
+      border-radius: 0 !important;
+      border-color: transparent;
+      box-shadow: none;
+      background: #000;
+    }
+
+    .stage.camera-active .camera-video,
+    .stage.camera-active .holder img {
+      object-fit: contain;
     }
 
     .stage.drag-over {
@@ -203,6 +226,9 @@
 
     .ring {
       position: absolute;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
       border-radius: 50%;
       pointer-events: none;
       transition: opacity .2s, border-color .2s;
@@ -1030,7 +1056,7 @@
 
       <div class="footer">
         <span>PC: 矢印キーで切替 / スマホ: スワイプ</span>
-        <span>v1.17-transparent-stage</span>
+        <span>v1.18-full-view-stage</span>
       </div>
     </div>
   </div>
@@ -1074,7 +1100,7 @@ const autoAdjustCanvas = document.createElement('canvas');
 const autoAdjustCtx = autoAdjustCanvas.getContext('2d', { willReadFrequently: true });
 
 const OUTPUT_SIZE = 3072;
-const SETTINGS_KEY = 'pokestopCameraSettings.v9';
+const SETTINGS_KEY = 'pokestopCameraSettings.v10';
 const PRESETS = {
   standard: {
     name: '標準',
@@ -2410,31 +2436,45 @@ function drawVideoCover(ctx, video, w, h) {
     throw new Error('カメラ映像の読み込みが完了していません。');
   }
 
-  const videoRatio = vw / vh;
-  const canvasRatio = w / h;
+  // 青背景を使わず、選択中のアスペクト比の中にカメラ映像全体が入るようにする。
+  // アスペクト比が合わない場合は黒帯で余白を作り、映像は切り抜かない。
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0, 0, w, h);
 
   let sx = 0;
   let sy = 0;
   let sw = vw;
   let sh = vh;
 
-  if (videoRatio > canvasRatio) {
-    sw = vh * canvasRatio;
-    sx = (vw - sw) / 2;
-  } else {
-    sh = vw / canvasRatio;
-    sy = (vh - sh) / 2;
+  const digitalZoom = hardwareZoomSupported ? 1 : Math.max(1, currentZoom || 1);
+  if (digitalZoom > 1) {
+    const zoomedSw = sw / digitalZoom;
+    const zoomedSh = sh / digitalZoom;
+    sx += (sw - zoomedSw) / 2;
+    sy += (sh - zoomedSh) / 2;
+    sw = zoomedSw;
+    sh = zoomedSh;
   }
 
-  const digitalZoom = hardwareZoomSupported ? 1 : Math.max(1, currentZoom || 1);
-  const zoomedSw = sw / digitalZoom;
-  const zoomedSh = sh / digitalZoom;
-  sx += (sw - zoomedSw) / 2;
-  sy += (sh - zoomedSh) / 2;
-  sw = zoomedSw;
-  sh = zoomedSh;
+  const sourceRatio = sw / sh;
+  const canvasRatio = w / h;
 
-  ctx.drawImage(video, sx, sy, sw, sh, 0, 0, w, h);
+  let dx = 0;
+  let dy = 0;
+  let dw = w;
+  let dh = h;
+
+  if (sourceRatio > canvasRatio) {
+    dw = w;
+    dh = w / sourceRatio;
+    dy = (h - dh) / 2;
+  } else {
+    dh = h;
+    dw = h * sourceRatio;
+    dx = (w - dw) / 2;
+  }
+
+  ctx.drawImage(video, sx, sy, sw, sh, dx, dy, dw, dh);
 }
 
 function captureFromCamera() {
