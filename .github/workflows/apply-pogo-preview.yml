@@ -36,49 +36,48 @@ jobs:
           original = html
 
           css = r'''
+          /* ===== PoGO風プレビュー v1.22.1 ===== */
+          body.mode-pogo {
+            --pogo-photo-size: min(65.3vw, 276px);
+          }
 
-    /* ===== PoGO風プレビュー v1.22 ===== */
-    body.mode-pogo {
-      --pogo-photo-size: min(65.3vw, 276px);
-    }
+          .mode-pogo .ring {
+            opacity: 1;
+          }
 
-    .mode-pogo .ring {
-      opacity: 1;
-    }
+          .mode-pogo .holder {
+            width: var(--pogo-photo-size);
+            aspect-ratio: 1 / 1;
+            border-radius: 50%;
+            border: 2px solid rgba(255, 255, 255, .95);
+          }
 
-    .mode-pogo .holder {
-      width: var(--pogo-photo-size);
-      aspect-ratio: 1 / 1;
-      border-radius: 50%;
-      border: 2px solid rgba(255, 255, 255, .95);
-    }
+          .mode-pogo .ring-1 {
+            width: calc(var(--pogo-photo-size) + 22px);
+            height: calc(var(--pogo-photo-size) + 22px);
+          }
 
-    .mode-pogo .ring-1 {
-      width: calc(var(--pogo-photo-size) + 22px);
-      height: calc(var(--pogo-photo-size) + 22px);
-    }
+          .mode-pogo .ring-2 {
+            width: calc(var(--pogo-photo-size) + 42px);
+            height: calc(var(--pogo-photo-size) + 42px);
+          }
 
-    .mode-pogo .ring-2 {
-      width: calc(var(--pogo-photo-size) + 42px);
-      height: calc(var(--pogo-photo-size) + 42px);
-    }
+          .mode-pogo .inner-disk-guide {
+            display: none;
+          }
 
-    .mode-pogo .inner-disk-guide {
-      display: none;
-    }
+          .pogo-mode-btn {
+            font-size: 12px;
+            font-weight: 700;
+            white-space: nowrap;
+          }
 
-    .pogo-mode-btn {
-      font-size: 12px;
-      font-weight: 700;
-      white-space: nowrap;
-    }
-
-    @media (min-width: 768px) {
-      body.mode-pogo {
-        --pogo-photo-size: 300px;
-      }
-    }
-'''
+          @media (min-width: 768px) {
+            body.mode-pogo {
+              --pogo-photo-size: 300px;
+            }
+          }
+          '''
 
           button = r'''
             <button class="mode-btn pogo-mode-btn" id="btn-pogo-details" type="button" title="PoGO風プレビュー">
@@ -86,82 +85,79 @@ jobs:
             </button>'''
 
           js = r'''
+          /* ===== PoGO風プレビュー追加 v1.22.1 ===== */
+          (() => {
+            const body = document.body;
+            const STORAGE_KEY = 'pscamera-display-mode';
 
-/* ===== PoGO風プレビュー追加 v1.22 ===== */
-(() => {
-  const body = document.body;
-  const STORAGE_KEY = 'pscamera-display-mode';
+            const buttons = {
+              disk: [
+                document.getElementById('btn-disk'),
+                document.getElementById('btn-disk-shooting'),
+                document.getElementById('btn-disk-details')
+              ].filter(Boolean),
 
-  const buttons = {
-    disk: [
-      document.getElementById('btn-disk'),
-      document.getElementById('btn-disk-shooting'),
-      document.getElementById('btn-disk-details')
-    ].filter(Boolean),
+              gift: [
+                document.getElementById('btn-gift'),
+                document.getElementById('btn-gift-shooting'),
+                document.getElementById('btn-gift-details')
+              ].filter(Boolean),
 
-    gift: [
-      document.getElementById('btn-gift'),
-      document.getElementById('btn-gift-shooting'),
-      document.getElementById('btn-gift-details')
-    ].filter(Boolean),
+              pogo: [
+                document.getElementById('btn-pogo-details')
+              ].filter(Boolean)
+            };
 
-    pogo: [
-      document.getElementById('btn-pogo-details')
-    ].filter(Boolean)
-  };
+            function updateModeButtons(mode) {
+              Object.entries(buttons).forEach(([name, list]) => {
+                list.forEach((btn) => {
+                  btn.classList.toggle('active', name === mode);
+                });
+              });
+            }
 
-  function updateModeButtons(mode) {
-    Object.entries(buttons).forEach(([name, list]) => {
-      list.forEach((btn) => {
-        btn.classList.toggle('active', name === mode);
-      });
-    });
-  }
+            function applyDisplayMode(mode, save = true) {
+              if (!['disk', 'gift', 'pogo'].includes(mode)) {
+                mode = 'disk';
+              }
 
-  function applyDisplayMode(mode, save = true) {
-    if (!['disk', 'gift', 'pogo'].includes(mode)) {
-      mode = 'disk';
-    }
+              body.classList.remove('mode-disk', 'mode-gift', 'mode-pogo');
+              body.classList.add(`mode-${mode}`);
 
-    body.classList.remove('mode-disk', 'mode-gift', 'mode-pogo');
-    body.classList.add(`mode-${mode}`);
+              updateModeButtons(mode);
 
-    updateModeButtons(mode);
+              if (save) {
+                localStorage.setItem(STORAGE_KEY, mode);
+              }
+            }
 
-    if (save) {
-      localStorage.setItem(STORAGE_KEY, mode);
-    }
-  }
+            buttons.pogo.forEach((btn) => {
+              btn.addEventListener('click', () => {
+                applyDisplayMode('pogo');
+              });
+            });
 
-  buttons.pogo.forEach((btn) => {
-    btn.addEventListener('click', () => {
-      applyDisplayMode('pogo');
-    });
-  });
+            ['disk', 'gift'].forEach((mode) => {
+              buttons[mode].forEach((btn) => {
+                btn.addEventListener('click', () => {
+                  setTimeout(() => {
+                    applyDisplayMode(mode);
+                  }, 0);
+                });
+              });
+            });
 
-  ['disk', 'gift'].forEach((mode) => {
-    buttons[mode].forEach((btn) => {
-      btn.addEventListener('click', () => {
-        setTimeout(() => {
-          applyDisplayMode(mode);
-        }, 0);
-      });
-    });
-  });
-
-  const savedMode = localStorage.getItem(STORAGE_KEY);
-  if (savedMode === 'pogo') {
-    applyDisplayMode('pogo', false);
-  }
-})();
-'''
+            const savedMode = localStorage.getItem(STORAGE_KEY);
+            if (savedMode === 'pogo') {
+              applyDisplayMode('pogo', false);
+            }
+          })();
+          '''
 
           if 'btn-pogo-details' not in html:
-              # CSS: insert before closing style tag.
               if 'PoGO風プレビュー v1.22' not in html:
                   html = html.replace('\n  </style>', css + '\n  </style>', 1)
 
-              # HTML button: insert immediately after the btn-gift-details button block.
               pattern = re.compile(
                   r'(\s*<button class="mode-btn" id="btn-gift-details" type="button" title="ギフトモード">\s*'
                   r'<svg class="icon" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="1\.5"/></svg>\s*'
@@ -170,14 +166,12 @@ jobs:
               )
               html, n = pattern.subn(r'\1' + button, html, count=1)
               if n == 0:
-                  # Fallback: insert after the first btn-gift-details button closing tag nearby.
                   fallback = re.compile(r'(<button[^>]+id="btn-gift-details"[\s\S]*?</button>)')
                   html, n = fallback.subn(r'\1' + button, html, count=1)
               if n == 0:
                   print('btn-gift-details の場所を見つけられませんでした。PoGO風ボタンを追加できません。')
                   sys.exit(1)
 
-              # JS: insert before the final closing script tag.
               if 'PoGO風プレビュー追加 v1.22' not in html:
                   pos = html.rfind('</script>')
                   if pos == -1:
@@ -187,8 +181,6 @@ jobs:
           else:
               print('PoGO風ボタンは既に存在します。重複追加はしません。')
 
-          # Version label update.
-          html = re.sub(r'v1\.\d+(?:-[A-Za-z0-9]+)*', 'v1.22-pogo-preview', html, count=1) if 'v1.22-pogo-preview' not in html else html
           html = html.replace('v1.21-image-management', 'v1.22-pogo-preview')
 
           if html != original:
