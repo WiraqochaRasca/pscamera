@@ -848,6 +848,40 @@
       .thumb { width: 56px; height: 56px; }
       .camera-actions { grid-template-columns: 1fr 1fr 1fr; }
     }
+
+    /* v1.22-size-only
+       UIはそのまま。枠・写真表示サイズだけを少し小さくして、
+       Pokestop Generator の最終生成画面に近い見え方へ寄せる。 */
+    .holder {
+      width: 226px;
+    }
+
+    .ring-1 {
+      width: 252px;
+      height: 252px;
+    }
+
+    .ring-2 {
+      width: 272px;
+      height: 272px;
+    }
+
+    @media (min-width: 768px) {
+      .holder {
+        width: 260px;
+      }
+
+      .ring-1 {
+        width: 282px;
+        height: 282px;
+      }
+
+      .ring-2 {
+        width: 302px;
+        height: 302px;
+      }
+    }
+
   </style>
 
   <meta name="theme-color" content="#181f26">
@@ -1089,7 +1123,7 @@
 
       <div class="footer">
         <span>PC: 矢印キーで切替 / スマホ: スワイプ</span>
-        <span>v1.21-image-management</span>
+        <span>v1.22-size-only</span>
       </div>
     </div>
   </div>
