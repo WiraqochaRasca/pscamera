@@ -848,6 +848,48 @@
       .thumb { width: 56px; height: 56px; }
       .camera-actions { grid-template-columns: 1fr 1fr 1fr; }
     }
+/* ===== PoGO風プレビュー v1.22.1 ===== */
+body.mode-pogo {
+  --pogo-photo-size: min(65.3vw, 276px);
+}
+
+.mode-pogo .ring {
+  opacity: 1;
+}
+
+.mode-pogo .holder {
+  width: var(--pogo-photo-size);
+  aspect-ratio: 1 / 1;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, .95);
+}
+
+.mode-pogo .ring-1 {
+  width: calc(var(--pogo-photo-size) + 22px);
+  height: calc(var(--pogo-photo-size) + 22px);
+}
+
+.mode-pogo .ring-2 {
+  width: calc(var(--pogo-photo-size) + 42px);
+  height: calc(var(--pogo-photo-size) + 42px);
+}
+
+.mode-pogo .inner-disk-guide {
+  display: none;
+}
+
+.pogo-mode-btn {
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+@media (min-width: 768px) {
+  body.mode-pogo {
+    --pogo-photo-size: 300px;
+  }
+}
+
   </style>
 
   <meta name="theme-color" content="#181f26">
@@ -1011,6 +1053,9 @@
             <button class="mode-btn" id="btn-gift-details" type="button" title="ギフトモード">
               <svg class="icon" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="1.5"/></svg>
             </button>
+  <button class="mode-btn pogo-mode-btn" id="btn-pogo-details" type="button" title="PoGO風プレビュー">
+    PoGO風
+  </button>
           </div>
         </label>
 
@@ -1089,7 +1134,7 @@
 
       <div class="footer">
         <span>PC: 矢印キーで切替 / スマホ: スワイプ</span>
-        <span>v1.21-image-management</span>
+        <span>v1.22-pogo-preview</span>
       </div>
     </div>
   </div>
@@ -2797,6 +2842,75 @@ render();
         .catch(err => console.warn('Service Worker registration failed', err));
     });
   }
+
+/* ===== PoGO風プレビュー追加 v1.22.1 ===== */
+(() => {
+  const body = document.body;
+  const STORAGE_KEY = 'pscamera-display-mode';
+
+  const buttons = {
+    disk: [
+      document.getElementById('btn-disk'),
+      document.getElementById('btn-disk-shooting'),
+      document.getElementById('btn-disk-details')
+    ].filter(Boolean),
+
+    gift: [
+      document.getElementById('btn-gift'),
+      document.getElementById('btn-gift-shooting'),
+      document.getElementById('btn-gift-details')
+    ].filter(Boolean),
+
+    pogo: [
+      document.getElementById('btn-pogo-details')
+    ].filter(Boolean)
+  };
+
+  function updateModeButtons(mode) {
+    Object.entries(buttons).forEach(([name, list]) => {
+      list.forEach((btn) => {
+        btn.classList.toggle('active', name === mode);
+      });
+    });
+  }
+
+  function applyDisplayMode(mode, save = true) {
+    if (!['disk', 'gift', 'pogo'].includes(mode)) {
+      mode = 'disk';
+    }
+
+    body.classList.remove('mode-disk', 'mode-gift', 'mode-pogo');
+    body.classList.add(`mode-${mode}`);
+
+    updateModeButtons(mode);
+
+    if (save) {
+      localStorage.setItem(STORAGE_KEY, mode);
+    }
+  }
+
+  buttons.pogo.forEach((btn) => {
+    btn.addEventListener('click', () => {
+      applyDisplayMode('pogo');
+    });
+  });
+
+  ['disk', 'gift'].forEach((mode) => {
+    buttons[mode].forEach((btn) => {
+      btn.addEventListener('click', () => {
+        setTimeout(() => {
+          applyDisplayMode(mode);
+        }, 0);
+      });
+    });
+  });
+
+  const savedMode = localStorage.getItem(STORAGE_KEY);
+  if (savedMode === 'pogo') {
+    applyDisplayMode('pogo', false);
+  }
+})();
+
 </script>
 
 </body>
