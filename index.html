@@ -849,37 +849,17 @@
       .camera-actions { grid-template-columns: 1fr 1fr 1fr; }
     }
 
-    /* v1.22-size-only
-       UIはそのまま。枠・写真表示サイズだけを少し小さくして、
-       Pokestop Generator の最終生成画面に近い見え方へ寄せる。 */
-    .holder {
-      width: 226px;
+    /* v1.23-photo-crop-preview
+       UIや枠サイズはそのまま。
+       枠内の「写真の見え方」だけを Pokestop Generator 側に近づける。
+       数値を強くしたい場合は 1.16 → 1.18 / 1.20 に変更。 */
+    :root {
+      --photo-preview-zoom: 1.16;
     }
 
-    .ring-1 {
-      width: 252px;
-      height: 252px;
-    }
-
-    .ring-2 {
-      width: 272px;
-      height: 272px;
-    }
-
-    @media (min-width: 768px) {
-      .holder {
-        width: 260px;
-      }
-
-      .ring-1 {
-        width: 282px;
-        height: 282px;
-      }
-
-      .ring-2 {
-        width: 302px;
-        height: 302px;
-      }
+    .holder img {
+      transform: scale(var(--photo-preview-zoom));
+      transform-origin: center center;
     }
 
   </style>
@@ -1123,7 +1103,7 @@
 
       <div class="footer">
         <span>PC: 矢印キーで切替 / スマホ: スワイプ</span>
-        <span>v1.22-size-only</span>
+        <span>v1.23-photo-crop-preview</span>
       </div>
     </div>
   </div>
@@ -1164,6 +1144,10 @@ const autoAdjustCanvas = document.createElement('canvas');
 const autoAdjustCtx = autoAdjustCanvas.getContext('2d', { willReadFrequently: true });
 
 const OUTPUT_SIZE = 3072;
+// Pokestop Generator へ入れた時の見え方に近づけるため、
+// プレビューとカメラ撮影時に少しだけ中央寄せで拡大クロップする。
+// 窓がまだ見えすぎる場合は 1.18〜1.20、寄りすぎる場合は 1.10〜1.14 に調整。
+const GENERATOR_PHOTO_CROP = 1.16;
 const SETTINGS_KEY = 'pokestopCameraSettings.v14-image-management';
 const PRESETS = {
   standard: {
@@ -1466,6 +1450,17 @@ function applyPreviewAspect() {
 
 function clampValue(value, min, max) {
   return Math.max(min, Math.min(max, value));
+}
+
+function updatePreviewZoomScale() {
+  const baseCrop = Number.isFinite(GENERATOR_PHOTO_CROP) ? GENERATOR_PHOTO_CROP : 1;
+  const digitalZoom = (Number.isFinite(GENERATOR_PHOTO_CROP) ? GENERATOR_PHOTO_CROP : 1) * (hardwareZoomSupported ? 1 : Math.max(1, currentZoom || 1));
+
+  // アップロード画像用
+  holder.style.setProperty('--photo-preview-zoom', String(baseCrop));
+
+  // カメラ映像用。既存のデジタルズームに Generator 近似クロップを重ねる。
+  holder.style.setProperty('--digital-zoom', String(baseCrop * digitalZoom));
 }
 
 
@@ -2045,7 +2040,7 @@ function setupCameraControls() {
   zoomRange.value = currentZoom;
   zoomRange.disabled = false;
   zoomValue.textContent = `${currentZoom.toFixed(1)}x`;
-  holder.style.setProperty('--digital-zoom', hardwareZoomSupported ? '1' : String(currentZoom));
+  updatePreviewZoomScale();
 
   if (btnZoomOut) btnZoomOut.disabled = false;
   if (btnZoomIn) btnZoomIn.disabled = false;
@@ -2128,7 +2123,7 @@ async function applyZoom(value) {
 
   // カメラ側ズーム対応時は映像自体がズームされるので、CSS拡大は重ねない。
   // 非対応時だけプレビューと保存画像でデジタルズームする。
-  holder.style.setProperty('--digital-zoom', hardwareZoomSupported ? '1' : zoom);
+  updatePreviewZoomScale();
   saveSettings();
 
   if (!cameraTrack || !hardwareZoomSupported) return;
@@ -2140,7 +2135,7 @@ async function applyZoom(value) {
   } catch (error) {
     console.warn('hardware zoom failed, using digital zoom', error);
     hardwareZoomSupported = false;
-    holder.style.setProperty('--digital-zoom', zoom);
+    updatePreviewZoomScale();
   }
 }
 
@@ -2464,7 +2459,7 @@ function stopCamera() {
   if (btnZoomOut) btnZoomOut.disabled = true;
   if (btnZoomIn) btnZoomIn.disabled = true;
   if (btnZoomReset) btnZoomReset.disabled = true;
-  holder.style.setProperty('--digital-zoom', '1');
+  updatePreviewZoomScale();
   holder.style.setProperty('--level-roll-angle', '0deg');
   holder.style.setProperty('--level-pitch-offset', '0px');
   lastMotionLevelAt = 0;
@@ -2504,7 +2499,7 @@ function drawVideoCover(ctx, video, w, h) {
     sy = (vh - sh) / 2;
   }
 
-  const digitalZoom = hardwareZoomSupported ? 1 : Math.max(1, currentZoom || 1);
+  const digitalZoom = (Number.isFinite(GENERATOR_PHOTO_CROP) ? GENERATOR_PHOTO_CROP : 1) * (hardwareZoomSupported ? 1 : Math.max(1, currentZoom || 1));
   const zoomedSw = sw / digitalZoom;
   const zoomedSh = sh / digitalZoom;
   sx += (sw - zoomedSw) / 2;
@@ -2816,6 +2811,7 @@ document.addEventListener('fullscreenchange', () => {
 loadSettings();
 applySimpleCameraDefaults();
 syncPresetBaseFromControls();
+updatePreviewZoomScale();
 applyPreviewAspect();
 updateWhiteBalanceControlState();
 updateGuideOpacity();
